@@ -129,6 +129,29 @@ test('executeWithHooks fires error hooks and rethrows', function () {
         ->and(TraitTestHook::$calls[0]['phase'])->toBe('error');
 });
 
+test('syncHook registers a sync hook for a given phase', function () {
+    $service = new TraitTestService();
+    $service->syncHook('before', 'create', TraitTestHook::class);
+    $service->syncHook('after', 'create', TraitTestHook::class);
+    $service->syncHook('error', 'create', TraitTestHook::class);
+
+    $stats = $service->stats();
+    expect($stats['total_service_hooks'])->toBe(3);
+});
+
+test('syncHook fires before and after like beforeHook/afterHook', function () {
+    $service = new TraitTestService();
+    $service->syncHook('before', 'create', TraitTestHook::class);
+    $service->syncHook('after', 'create', TraitTestHook::class);
+
+    $result = $service->create();
+
+    expect($result)->toBe('created')
+        ->and(TraitTestHook::$calls)->toHaveCount(2)
+        ->and(TraitTestHook::$calls[0]['phase'])->toBe('before')
+        ->and(TraitTestHook::$calls[1]['phase'])->toBe('after');
+});
+
 test('addServiceQueuedHook registers a queued hook', function () {
     $service = new TraitTestService();
     $service->registerQueued('after', 'create', TraitTestHook::class);

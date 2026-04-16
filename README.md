@@ -129,10 +129,15 @@ class MyProcessor   { use HookableTrait; }
 ### Register hooks (public methods)
 
 ```php
-// Simple shortcuts
+// Phase shortcuts (always sync)
 $this->beforeHook('methodName', MyHook::class);
 $this->afterHook('methodName', MyHook::class);
 $this->errorHook('methodName', MyHook::class);
+
+// Explicit sync (choose the phase)
+$this->syncHook('before', 'methodName', MyHook::class);
+$this->syncHook('after',  'methodName', MyHook::class);
+$this->syncHook('error',  'methodName', MyHook::class);
 
 // With strategy and options
 $this->hook('after', 'methodName', MyHook::class, strategy: 'queue');

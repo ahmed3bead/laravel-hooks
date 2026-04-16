@@ -73,6 +73,16 @@ trait HookableTrait
         return $this->addServiceHook('error', $method, $hookClass, 'sync', $options);
     }
 
+    /**
+     * Register a synchronous hook (explicit sync alias).
+     *
+     * @param string $phase  'before', 'after', or 'error'
+     */
+    public function syncHook(string $phase, string $method, string $hookClass, array $options = []): static
+    {
+        return $this->addServiceHook($phase, $method, $hookClass, 'sync', $options);
+    }
+
     // -------------------------------------------------------------------------
     // Internal / advanced helpers (protected — override in subclasses as needed)
     // -------------------------------------------------------------------------

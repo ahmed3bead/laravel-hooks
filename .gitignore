@@ -1,0 +1,10 @@
+/vendor/
+/node_modules/
+/.idea/
+/.vscode/
+*.log
+*.cache
+.env
+.phpunit.result.cache
+coverage/
+.phpstan/

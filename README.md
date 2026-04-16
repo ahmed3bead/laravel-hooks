@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/ahmed3bead/laravel-hooks/blob/main/image.png?raw=true" width="100%" alt="Lara-CRUD Banner">
+</p>
+
 # Laravel Hooks
 
 Add **before**, **after**, and **error** lifecycle hooks to any method in any class — controllers, services, jobs, models, or plain PHP objects.

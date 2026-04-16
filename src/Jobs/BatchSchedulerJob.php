@@ -19,13 +19,13 @@ class BatchSchedulerJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
     public int $timeout = 60;
 
     public function __construct(
         private string $batchKey,
-        public         $delay
-    )
-    {
+        public $delay
+    ) {
         $this->onQueue(config('laravel-hooks.batch_queue', 'batch'));
     }
 
@@ -39,7 +39,7 @@ class BatchSchedulerJob implements ShouldQueue
         // For now, we'll just log the scheduling
         Log::info('Batch scheduler triggered', [
             'batch_key' => $this->batchKey,
-            'delay' => $this->delay
+            'delay' => $this->delay,
         ]);
 
         // In a real implementation, you would:
@@ -55,7 +55,7 @@ class BatchSchedulerJob implements ShouldQueue
     {
         return [
             'batch-scheduler',
-            'key:' . $this->batchKey
+            'key:'.$this->batchKey,
         ];
     }
 }

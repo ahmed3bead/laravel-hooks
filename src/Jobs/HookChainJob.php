@@ -20,14 +20,14 @@ class HookChainJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 600;
 
     public function __construct(
-        private array       $hooks,
+        private array $hooks,
         private HookContext $context,
-        private bool        $stopOnFailure = true
-    )
-    {
+        private bool $stopOnFailure = true
+    ) {
         $this->onQueue(config('laravel-hooks.default_queue', 'default'));
     }
 
@@ -38,7 +38,7 @@ class HookChainJob implements ShouldQueue
     {
         Log::info('Executing hook chain', [
             'hooks_count' => count($this->hooks),
-            'context' => $this->context->toArray()
+            'context' => $this->context->toArray(),
         ]);
 
         $executed = 0;
@@ -55,7 +55,7 @@ class HookChainJob implements ShouldQueue
                 Log::error('Hook in chain failed', [
                     'hook' => get_class($hook),
                     'context' => $this->context->toArray(),
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
 
                 if ($this->stopOnFailure) {
@@ -67,7 +67,7 @@ class HookChainJob implements ShouldQueue
         Log::info('Hook chain completed', [
             'total' => count($this->hooks),
             'executed' => $executed,
-            'failed' => $failed
+            'failed' => $failed,
         ]);
     }
 
@@ -79,7 +79,7 @@ class HookChainJob implements ShouldQueue
         Log::error('Hook chain job failed', [
             'hooks_count' => count($this->hooks),
             'context' => $this->context->toArray(),
-            'error' => $exception->getMessage()
+            'error' => $exception->getMessage(),
         ]);
     }
 
@@ -90,9 +90,9 @@ class HookChainJob implements ShouldQueue
     {
         return [
             'hook-chain',
-            'method:' . $this->context->method,
-            'phase:' . $this->context->phase,
-            'count:' . count($this->hooks)
+            'method:'.$this->context->method,
+            'phase:'.$this->context->phase,
+            'count:'.count($this->hooks),
         ];
     }
 }

@@ -2,10 +2,9 @@
 
 namespace Ahmed3bead\LaravelHooks\Console;
 
-use Illuminate\Console\Command;
 use Ahmed3bead\LaravelHooks\HookManager;
-use Ahmed3bead\LaravelHooks\HookRegistry;
 use Ahmed3bead\LaravelHooks\Strategies\BatchedHookStrategy;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 class HooksManagementCommand extends Command
@@ -66,12 +65,14 @@ class HooksManagementCommand extends Command
                 default:
                     $this->error("Unknown action: {$action}");
                     $this->showHelp();
+
                     return Command::FAILURE;
             }
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
             $this->error("Error executing hooks command: {$e->getMessage()}");
+
             return Command::FAILURE;
         }
     }
@@ -91,11 +92,12 @@ class HooksManagementCommand extends Command
 
         if (empty($serviceHooks) && empty($globalHooks)) {
             $this->warn('No hooks registered.');
+
             return;
         }
 
         // Service-specific hooks
-        if (!empty($serviceHooks)) {
+        if (! empty($serviceHooks)) {
             $this->info('Service-Specific Hooks:');
             $this->line('');
 
@@ -112,7 +114,7 @@ class HooksManagementCommand extends Command
                         'Hook' => class_basename($hook['class']),
                         'Strategy' => $hook['strategy'],
                         'Priority' => $hook['priority'],
-                        'Enabled' => $hook['enabled'] ? 'Yes' : 'No'
+                        'Enabled' => $hook['enabled'] ? 'Yes' : 'No',
                     ];
                 }
             }
@@ -124,7 +126,7 @@ class HooksManagementCommand extends Command
         }
 
         // Global hooks
-        if (!empty($globalHooks)) {
+        if (! empty($globalHooks)) {
             $this->line('');
             $this->info('Global Hooks:');
             $this->line('');
@@ -140,7 +142,7 @@ class HooksManagementCommand extends Command
                         'Hook' => class_basename($hook['class']),
                         'Strategy' => $hook['strategy'],
                         'Priority' => $hook['priority'],
-                        'Enabled' => $hook['enabled'] ? 'Yes' : 'No'
+                        'Enabled' => $hook['enabled'] ? 'Yes' : 'No',
                     ];
                 }
             }
@@ -170,7 +172,7 @@ class HooksManagementCommand extends Command
             ['System Enabled', $stats['enabled'] ? 'Yes' : 'No'],
             ['Registered Strategies', implode(', ', $stats['registered_strategies'])],
             ['Middleware Count', $stats['middleware_count']],
-            ['Debug Mode', $stats['debug_mode'] ? 'On' : 'Off']
+            ['Debug Mode', $stats['debug_mode'] ? 'On' : 'Off'],
         ];
 
         $this->table(['Metric', 'Value'], array_slice($statsData, 1));
@@ -195,24 +197,27 @@ class HooksManagementCommand extends Command
     {
         $service = $this->option('service');
 
-        if (!$service) {
+        if (! $service) {
             $this->error('Please specify a service class with --service option');
             $this->line('Example: php artisan hooks:manage debug --service="App\\Services\\UserService"');
+
             return;
         }
 
-        if (!class_exists($service)) {
+        if (! class_exists($service)) {
             $this->error("Service class {$service} does not exist");
+
             return;
         }
 
         $hooks = $hookManager->debugService($service);
 
-        $this->info("Debug Hooks for Service: " . class_basename($service));
+        $this->info('Debug Hooks for Service: '.class_basename($service));
         $this->line('');
 
         if (empty($hooks)) {
             $this->warn('No hooks found for this service.');
+
             return;
         }
 
@@ -221,6 +226,7 @@ class HooksManagementCommand extends Command
 
             if (empty($hookList)) {
                 $this->line('  <fg=gray>No hooks registered</>');
+
                 continue;
             }
 
@@ -237,8 +243,9 @@ class HooksManagementCommand extends Command
      */
     private function clearHooks(HookManager $hookManager): void
     {
-        if (!$this->option('force') && !$this->confirm('Are you sure you want to clear all hooks? This action cannot be undone.')) {
+        if (! $this->option('force') && ! $this->confirm('Are you sure you want to clear all hooks? This action cannot be undone.')) {
             $this->info('Operation cancelled.');
+
             return;
         }
 
@@ -260,8 +267,9 @@ class HooksManagementCommand extends Command
      */
     private function disableHooks(HookManager $hookManager): void
     {
-        if (!$this->option('force') && !$this->confirm('Are you sure you want to disable the hook system?')) {
+        if (! $this->option('force') && ! $this->confirm('Are you sure you want to disable the hook system?')) {
             $this->info('Operation cancelled.');
+
             return;
         }
 
@@ -311,7 +319,7 @@ class HooksManagementCommand extends Command
         $this->info('Test 3: Available Strategies');
         $stats = $hookManager->getStats();
         $strategies = $stats['registered_strategies'];
-        $this->info("Available strategies: " . implode(', ', $strategies));
+        $this->info('Available strategies: '.implode(', ', $strategies));
 
         $this->line('');
         $this->info('Hook System Test Complete');
@@ -322,12 +330,12 @@ class HooksManagementCommand extends Command
      */
     private function exportHooks(HookManager $hookManager): void
     {
-        $exportFile = $this->option('export') ?: 'hooks_export_' . date('Y-m-d_H-i-s') . '.json';
+        $exportFile = $this->option('export') ?: 'hooks_export_'.date('Y-m-d_H-i-s').'.json';
 
         $data = [
             'exported_at' => now()->toISOString(),
             'stats' => $hookManager->getStats(),
-            'hooks' => $hookManager->getRegistry()->getAllHooks()
+            'hooks' => $hookManager->getRegistry()->getAllHooks(),
         ];
 
         try {
@@ -364,7 +372,7 @@ class HooksManagementCommand extends Command
             $strategyData[] = [$strategy, $count];
         }
 
-        if (!empty($strategyData)) {
+        if (! empty($strategyData)) {
             $this->table(['Strategy', 'Count'], $strategyData);
         }
     }
@@ -393,7 +401,7 @@ class HooksManagementCommand extends Command
             $phaseData[] = [$phase, $count];
         }
 
-        if (!empty($phaseData)) {
+        if (! empty($phaseData)) {
             $this->table(['Phase', 'Count'], $phaseData);
         }
     }

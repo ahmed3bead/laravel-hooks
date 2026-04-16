@@ -1,13 +1,14 @@
 <?php
 
-use Ahmed3bead\LaravelHooks\HookContext;
 use Ahmed3bead\LaravelHooks\Contracts\WrappedResponseInterface;
+use Ahmed3bead\LaravelHooks\HookContext;
 use Illuminate\Database\Eloquent\Model;
 
 // Helper: minimal service stub
 function makeService(): object
 {
-    return new class {
+    return new class
+    {
         public string $name = 'TestService';
     };
 }
@@ -15,27 +16,42 @@ function makeService(): object
 // Helper: minimal model stub
 function makeModel(array $attrs = []): Model
 {
-    $model = new class extends Model {
+    $model = new class extends Model
+    {
         protected $guarded = [];
     };
     foreach ($attrs as $key => $value) {
         $model->$key = $value;
     }
+
     return $model;
 }
 
 // Helper: wrapped response stub
 function makeWrappedResponse(mixed $data, int $status = 200, string $message = 'OK'): WrappedResponseInterface
 {
-    return new class($data, $status, $message) implements WrappedResponseInterface {
+    return new class($data, $status, $message) implements WrappedResponseInterface
+    {
         public function __construct(
             private mixed $data,
             private int $status,
             private string $message
         ) {}
-        public function getData(): mixed { return $this->data; }
-        public function getStatusCode(): int { return $this->status; }
-        public function getMessage(): string { return $this->message; }
+
+        public function getData(): mixed
+        {
+            return $this->data;
+        }
+
+        public function getStatusCode(): int
+        {
+            return $this->status;
+        }
+
+        public function getMessage(): string
+        {
+            return $this->message;
+        }
     };
 }
 
@@ -167,7 +183,7 @@ test('toArray returns array with expected keys', function () {
     expect($array)->toHaveKeys([
         'method', 'phase', 'data', 'request_data', 'parameters',
         'result_type', 'has_wrapped_response', 'status_code', 'message',
-        'service', 'model', 'extracted_model', 'user', 'metadata'
+        'service', 'model', 'extracted_model', 'user', 'metadata',
     ]);
 });
 
@@ -177,7 +193,7 @@ test('getUserId returns null when no user set', function () {
 });
 
 test('getUserId returns user id when user has id property', function () {
-    $user = new stdClass();
+    $user = new stdClass;
     $user->id = 99;
     $ctx = new HookContext('create', 'before', null, [], null, makeService(), null, $user);
     expect($ctx->getUserId())->toBe(99);

@@ -1,22 +1,54 @@
 <?php
 
-use Ahmed3bead\LaravelHooks\HookManager;
-use Ahmed3bead\LaravelHooks\HookRegistry;
 use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
 use Ahmed3bead\LaravelHooks\HookContext;
+use Ahmed3bead\LaravelHooks\HookManager;
 
 // Hook fixture for commands test
 class CommandsTestHook implements HookJobInterface
 {
     public function handle(HookContext $context): void {}
-    public function shouldExecute(HookContext $context): bool { return true; }
-    public function getPriority(): int { return 100; }
-    public function getRetryAttempts(): int { return 1; }
-    public function getRetryDelay(): int { return 0; }
-    public function getTimeout(): int { return 30; }
-    public function isAsync(): bool { return false; }
-    public function getQueueName(): string { return 'default'; }
-    public function getMetadata(): array { return []; }
+
+    public function shouldExecute(HookContext $context): bool
+    {
+        return true;
+    }
+
+    public function getPriority(): int
+    {
+        return 100;
+    }
+
+    public function getRetryAttempts(): int
+    {
+        return 1;
+    }
+
+    public function getRetryDelay(): int
+    {
+        return 0;
+    }
+
+    public function getTimeout(): int
+    {
+        return 30;
+    }
+
+    public function isAsync(): bool
+    {
+        return false;
+    }
+
+    public function getQueueName(): string
+    {
+        return 'default';
+    }
+
+    public function getMetadata(): array
+    {
+        return [];
+    }
+
     public function execute(HookContext $context): void {}
 }
 

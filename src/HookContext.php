@@ -2,8 +2,8 @@
 
 namespace Ahmed3bead\LaravelHooks;
 
-use Illuminate\Database\Eloquent\Model;
 use Ahmed3bead\LaravelHooks\Contracts\WrappedResponseInterface;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Enhanced Hook Context with Data Extraction
@@ -200,7 +200,7 @@ class HookContext
             'model' => $this->model ? get_class($this->model) : null,
             'extracted_model' => $this->getModelFromResult() ? get_class($this->getModelFromResult()) : null,
             'user' => $this->user ? get_class($this->user) : null,
-            'metadata' => $this->metadata
+            'metadata' => $this->metadata,
         ];
     }
 
@@ -227,7 +227,6 @@ class HookContext
     {
         return $this->metadata[$key] ?? $default;
     }
-
 
     /**
      * Get request_data value
@@ -259,6 +258,7 @@ class HookContext
     public function getModelId(): mixed
     {
         $model = $this->getModelFromResult();
+
         return $model?->getKey();
     }
 
@@ -276,6 +276,7 @@ class HookContext
     public function isSuccessful(): bool
     {
         $statusCode = $this->getStatusCode();
+
         return $statusCode >= 200 && $statusCode < 300;
     }
 
@@ -285,6 +286,7 @@ class HookContext
     public function getModelAttributes(): array
     {
         $model = $this->getModelFromResult();
+
         return $model ? $model->toArray() : [];
     }
 
@@ -294,6 +296,7 @@ class HookContext
     public function getOriginalAttributes(): array
     {
         $model = $this->getModelFromResult();
+
         return $model ? $model->getOriginal() : [];
     }
 
@@ -303,6 +306,7 @@ class HookContext
     public function getModelChanges(): array
     {
         $model = $this->getModelFromResult();
+
         return $model ? $model->getChanges() : [];
     }
 
@@ -312,6 +316,7 @@ class HookContext
     public function wasModelRecentlyCreated(): bool
     {
         $model = $this->getModelFromResult();
+
         return $model ? $model->wasRecentlyCreated : false;
     }
 }

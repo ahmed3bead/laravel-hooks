@@ -3,7 +3,6 @@
 namespace Ahmed3bead\LaravelHooks;
 
 use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
-use Ahmed3bead\LaravelHooks\HookContext;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,12 +15,19 @@ use Illuminate\Support\Facades\Log;
 abstract class BaseHookJob implements HookJobInterface
 {
     protected int $priority = 100;
+
     protected int $retryAttempts = 3;
+
     protected int $retryDelay = 30;
+
     protected int $timeout = 300; // 5 minutes
+
     protected bool $async = false;
+
     protected string $queueName = 'default';
+
     protected array $conditions = [];
+
     protected array $metadata = [];
 
     public function getPriority(): int
@@ -60,7 +66,7 @@ abstract class BaseHookJob implements HookJobInterface
             'class' => static::class,
             'priority' => $this->priority,
             'async' => $this->async,
-            'queue' => $this->queueName
+            'queue' => $this->queueName,
         ]);
     }
 
@@ -70,11 +76,13 @@ abstract class BaseHookJob implements HookJobInterface
     public function shouldExecute(HookContext $context): bool
     {
         foreach ($this->conditions as $condition) {
-            if (!($condition['callable'])($context)) {
+            if (! ($condition['callable'])($context)) {
                 $this->logConditionFailure($context, $condition);
+
                 return false;
             }
         }
+
         return true;
     }
 
@@ -85,8 +93,9 @@ abstract class BaseHookJob implements HookJobInterface
     {
         $this->conditions[] = [
             'callable' => $condition,
-            'description' => $description
+            'description' => $description,
         ];
+
         return $this;
     }
 
@@ -96,6 +105,7 @@ abstract class BaseHookJob implements HookJobInterface
     protected function setPriority(int $priority): static
     {
         $this->priority = $priority;
+
         return $this;
     }
 
@@ -106,6 +116,7 @@ abstract class BaseHookJob implements HookJobInterface
     {
         $this->retryAttempts = $attempts;
         $this->retryDelay = $delay;
+
         return $this;
     }
 
@@ -115,6 +126,7 @@ abstract class BaseHookJob implements HookJobInterface
     protected function setTimeout(int $timeout): static
     {
         $this->timeout = $timeout;
+
         return $this;
     }
 
@@ -125,6 +137,7 @@ abstract class BaseHookJob implements HookJobInterface
     {
         $this->async = $async;
         $this->queueName = $queueName;
+
         return $this;
     }
 
@@ -134,6 +147,7 @@ abstract class BaseHookJob implements HookJobInterface
     protected function addMetadata(string $key, mixed $value): static
     {
         $this->metadata[$key] = $value;
+
         return $this;
     }
 
@@ -143,15 +157,15 @@ abstract class BaseHookJob implements HookJobInterface
     protected function onlyForMethods(array $methods): static
     {
         return $this->addCondition(
-            fn(HookContext $context) => in_array($context->method, $methods),
-            'Only for methods: ' . implode(', ', $methods)
+            fn (HookContext $context) => in_array($context->method, $methods),
+            'Only for methods: '.implode(', ', $methods)
         );
     }
 
     protected function onlyForPhase(string $phase): static
     {
         return $this->addCondition(
-            fn(HookContext $context) => $context->phase === $phase,
+            fn (HookContext $context) => $context->phase === $phase,
             "Only for phase: {$phase}"
         );
     }
@@ -159,7 +173,7 @@ abstract class BaseHookJob implements HookJobInterface
     protected function onlyForUser(callable $userCondition): static
     {
         return $this->addCondition(
-            fn(HookContext $context) => $context->user && $userCondition($context->user),
+            fn (HookContext $context) => $context->user && $userCondition($context->user),
             'User condition check'
         );
     }
@@ -167,7 +181,7 @@ abstract class BaseHookJob implements HookJobInterface
     protected function onlyForModel(string $modelClass): static
     {
         return $this->addCondition(
-            fn(HookContext $context) => $context->model instanceof $modelClass,
+            fn (HookContext $context) => $context->model instanceof $modelClass,
             "Only for model: {$modelClass}"
         );
     }
@@ -180,7 +194,7 @@ abstract class BaseHookJob implements HookJobInterface
         Log::debug('Hook condition failed', [
             'hook' => static::class,
             'condition' => $condition['description'] ?? 'Unknown condition',
-            'context' => $context->toArray()
+            'context' => $context->toArray(),
         ]);
     }
 
@@ -229,7 +243,7 @@ abstract class BaseHookJob implements HookJobInterface
             'hook' => static::class,
             'error' => $e->getMessage(),
             'context' => $context->toArray(),
-            'trace' => $e->getTraceAsString()
+            'trace' => $e->getTraceAsString(),
         ]);
     }
 }

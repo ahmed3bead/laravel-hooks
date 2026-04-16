@@ -17,8 +17,11 @@ use Illuminate\Support\Facades\Queue;
 class BatchedHookStrategy implements HookExecutionStrategy
 {
     private static array $batches = [];
+
     private int $batchSize;
+
     private int $batchDelay;
+
     private string $batchKey;
 
     public function __construct(int $batchSize = 10, int $batchDelay = 60)
@@ -42,14 +45,14 @@ class BatchedHookStrategy implements HookExecutionStrategy
     {
         $batchKey = $this->determineBatchKey($hook, $context);
 
-        if (!isset(self::$batches[$batchKey])) {
+        if (! isset(self::$batches[$batchKey])) {
             self::$batches[$batchKey] = [];
         }
 
         self::$batches[$batchKey][] = [
             'hook' => $hook,
             'context' => $context,
-            'timestamp' => now()
+            'timestamp' => now(),
         ];
 
         if (count(self::$batches[$batchKey]) >= $this->batchSize) {
@@ -63,25 +66,28 @@ class BatchedHookStrategy implements HookExecutionStrategy
     public function setBatchSize(int $size): self
     {
         $this->batchSize = $size;
+
         return $this;
     }
 
     public function setBatchDelay(int $delay): self
     {
         $this->batchDelay = $delay;
+
         return $this;
     }
 
     public function setBatchKey(string $key): self
     {
         $this->batchKey = $key;
+
         return $this;
     }
 
     private function determineBatchKey(HookJobInterface $hook, HookContext $context): string
     {
         // Group by hook class and method for better batching
-        return $this->batchKey . '_' . get_class($hook) . '_' . $context->method;
+        return $this->batchKey.'_'.get_class($hook).'_'.$context->method;
     }
 
     private function processBatch(string $batchKey): void
@@ -113,7 +119,7 @@ class BatchedHookStrategy implements HookExecutionStrategy
     public static function flushBatches(): void
     {
         foreach (self::$batches as $batchKey => $batch) {
-            if (!empty($batch)) {
+            if (! empty($batch)) {
                 $job = new BatchProcessorJob($batch);
                 Queue::push($job);
             }

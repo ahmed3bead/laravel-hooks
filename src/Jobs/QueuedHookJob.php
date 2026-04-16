@@ -22,7 +22,9 @@ class QueuedHookJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries;
+
     public int $timeout;
+
     public int $backoff;
 
     public function __construct(
@@ -44,7 +46,7 @@ class QueuedHookJob implements ShouldQueue
             Log::info('Executing queued hook', [
                 'hook' => get_class($this->hook),
                 'context' => $this->context->toArray(),
-                'attempt' => $this->attempts() + 1
+                'attempt' => $this->attempts() + 1,
             ]);
 
             if ($this->hook->shouldExecute($this->context)) {
@@ -53,12 +55,12 @@ class QueuedHookJob implements ShouldQueue
                 Log::info('Queued hook executed successfully', [
                     'hook' => get_class($this->hook),
                     'context_method' => $this->context->method,
-                    'context_phase' => $this->context->phase
+                    'context_phase' => $this->context->phase,
                 ]);
             } else {
                 Log::info('Queued hook skipped due to conditions', [
                     'hook' => get_class($this->hook),
-                    'context' => $this->context->toArray()
+                    'context' => $this->context->toArray(),
                 ]);
             }
         } catch (\Exception $e) {
@@ -67,7 +69,7 @@ class QueuedHookJob implements ShouldQueue
                 'context' => $this->context->toArray(),
                 'error' => $e->getMessage(),
                 'attempt' => $this->attempts() + 1,
-                'max_attempts' => $this->tries
+                'max_attempts' => $this->tries,
             ]);
 
             throw $e;
@@ -83,7 +85,7 @@ class QueuedHookJob implements ShouldQueue
             'hook' => get_class($this->hook),
             'context' => $this->context->toArray(),
             'error' => $exception->getMessage(),
-            'attempts' => $this->attempts()
+            'attempts' => $this->attempts(),
         ]);
 
         // You can add additional failure handling here
@@ -96,10 +98,10 @@ class QueuedHookJob implements ShouldQueue
     public function tags(): array
     {
         return [
-            'hook:' . get_class($this->hook),
-            'method:' . $this->context->method,
-            'phase:' . $this->context->phase,
-            'service:' . get_class($this->context->service)
+            'hook:'.get_class($this->hook),
+            'method:'.$this->context->method,
+            'phase:'.$this->context->phase,
+            'service:'.get_class($this->context->service),
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace Ahmed3bead\LaravelHooks;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Hook Trait
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Auth;
 trait HookableTrait
 {
     private ?HookManager $hookManager = null;
+
     private bool $hooksInitialized = false;
 
     /**
@@ -33,18 +35,18 @@ trait HookableTrait
     /**
      * Register a hook.
      *
-     * @param string $phase     'before', 'after', or 'error'
-     * @param string $method    The method name to attach the hook to
-     * @param string $hookClass Hook class implementing HookJobInterface
-     * @param string $strategy  'sync' (default), 'queue', 'delay', or 'batch'
-     * @param array  $options   Optional: priority, delay, batch_size, enabled, ...
+     * @param  string  $phase  'before', 'after', or 'error'
+     * @param  string  $method  The method name to attach the hook to
+     * @param  string  $hookClass  Hook class implementing HookJobInterface
+     * @param  string  $strategy  'sync' (default), 'queue', 'delay', or 'batch'
+     * @param  array  $options  Optional: priority, delay, batch_size, enabled, ...
      */
     public function hook(
         string $phase,
         string $method,
         string $hookClass,
         string $strategy = 'sync',
-        array  $options = []
+        array $options = []
     ): static {
         return $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
     }
@@ -76,7 +78,7 @@ trait HookableTrait
     /**
      * Register a synchronous hook (explicit sync alias).
      *
-     * @param string $phase  'before', 'after', or 'error'
+     * @param  string  $phase  'before', 'after', or 'error'
      */
     public function syncHook(string $phase, string $method, string $hookClass, array $options = []): static
     {
@@ -94,9 +96,8 @@ trait HookableTrait
         string $phase,
         string $method,
         string $hookClass,
-        array  $options = []
-    ): self
-    {
+        array $options = []
+    ): self {
         $this->getHookManager()->addSyncHook(
             static::class,
             $method,
@@ -153,9 +154,8 @@ trait HookableTrait
         string $phase,
         string $method,
         string $hookClass,
-        array  $options = []
-    ): self
-    {
+        array $options = []
+    ): self {
         $this->getHookManager()->addQueuedHook(
             static::class,
             $method,
@@ -174,10 +174,9 @@ trait HookableTrait
         string $phase,
         string $method,
         string $hookClass,
-        int    $delay = 30,
-        array  $options = []
-    ): self
-    {
+        int $delay = 30,
+        array $options = []
+    ): self {
         $this->getHookManager()->addDelayedHook(
             static::class,
             $method,
@@ -197,9 +196,8 @@ trait HookableTrait
         string $phase,
         string $method,
         string $hookClass,
-        array  $options = []
-    ): self
-    {
+        array $options = []
+    ): self {
         $this->getHookManager()->addBatchedHook(
             static::class,
             $method,
@@ -237,9 +235,8 @@ trait HookableTrait
         string $method,
         string $hookClass,
         string $strategy = 'sync',
-        array  $options = []
-    ): self
-    {
+        array $options = []
+    ): self {
         $this->getHookManager()->addHook(
             static::class,
             $method,
@@ -258,6 +255,7 @@ trait HookableTrait
     protected function removeServiceHooks(string $method, string $phase): self
     {
         $this->getHookManager()->removeHooks(static::class, $method, $phase);
+
         return $this;
     }
 
@@ -268,9 +266,9 @@ trait HookableTrait
         string $method,
         string $phase,
         string $hookClass
-    ): self
-    {
+    ): self {
         $this->getHookManager()->removeHook(static::class, $method, $phase, $hookClass);
+
         return $this;
     }
 
@@ -280,6 +278,7 @@ trait HookableTrait
     protected function enableServiceHooks(bool $enabled = true): self
     {
         $this->getHookManager()->enable($enabled);
+
         return $this;
     }
 
@@ -303,12 +302,11 @@ trait HookableTrait
      * Execute a method with automatic hook execution
      */
     protected function executeWithHooks(
-        string   $method,
+        string $method,
         callable $callback,
-        mixed    $data = null,
-        array    $parameters = []
-    ): mixed
-    {
+        mixed $data = null,
+        array $parameters = []
+    ): mixed {
         // Execute before hooks
         $this->executeBeforeHooks($method, $data, $parameters);
 
@@ -332,11 +330,10 @@ trait HookableTrait
      */
     protected function executeBeforeHooks(
         string $method,
-        mixed  $data = null,
-        array  $parameters = []
-    ): void
-    {
-        if (!$this->shouldExecuteHooks()) {
+        mixed $data = null,
+        array $parameters = []
+    ): void {
+        if (! $this->shouldExecuteHooks()) {
             return;
         }
 
@@ -379,7 +376,7 @@ trait HookableTrait
             'timestamp' => now(),
             'request_id' => request()?->id ?? null,
             'ip_address' => request()?->ip(),
-            'user_agent' => request()?->userAgent()
+            'user_agent' => request()?->userAgent(),
         ];
     }
 
@@ -388,12 +385,11 @@ trait HookableTrait
      */
     protected function executeAfterHooks(
         string $method,
-        mixed  $data = null,
-        array  $parameters = [],
-        mixed  $result = null
-    ): void
-    {
-        if (!$this->shouldExecuteHooks()) {
+        mixed $data = null,
+        array $parameters = [],
+        mixed $result = null
+    ): void {
+        if (! $this->shouldExecuteHooks()) {
             return;
         }
 
@@ -414,13 +410,12 @@ trait HookableTrait
      * Execute error hooks (optional)
      */
     protected function executeErrorHooks(
-        string     $method,
-        mixed      $data = null,
-        array      $parameters = [],
-        \Exception $error = null
-    ): void
-    {
-        if (!$this->shouldExecuteHooks()) {
+        string $method,
+        mixed $data = null,
+        array $parameters = [],
+        ?\Exception $error = null
+    ): void {
+        if (! $this->shouldExecuteHooks()) {
             return;
         }
 
@@ -443,11 +438,11 @@ trait HookableTrait
             $this->getHookManager()->executeHooks($context);
         } catch (\Exception $hookError) {
             // Log hook execution error but don't throw
-            \Illuminate\Support\Facades\Log::error('Error hook execution failed', [
+            Log::error('Error hook execution failed', [
                 'service' => static::class,
                 'method' => $method,
                 'original_error' => $error?->getMessage(),
-                'hook_error' => $hookError->getMessage()
+                'hook_error' => $hookError->getMessage(),
             ]);
         }
     }
@@ -474,14 +469,13 @@ trait HookableTrait
      * Register conditional hooks
      */
     protected function addConditionalHook(
-        string   $phase,
-        string   $method,
-        string   $hookClass,
+        string $phase,
+        string $method,
+        string $hookClass,
         callable $condition,
-        string   $strategy = 'sync',
-        array    $options = []
-    ): self
-    {
+        string $strategy = 'sync',
+        array $options = []
+    ): self {
         $options['conditions'] = $options['conditions'] ?? [];
         $options['conditions'][] = $condition;
 
@@ -493,12 +487,11 @@ trait HookableTrait
      */
     protected function addHookForMethods(
         string $phase,
-        array  $methods,
+        array $methods,
         string $hookClass,
         string $strategy = 'sync',
-        array  $options = []
-    ): self
-    {
+        array $options = []
+    ): self {
         foreach ($methods as $method) {
             $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
         }
@@ -513,12 +506,12 @@ trait HookableTrait
         string $phase,
         string $method,
         string $hookClass,
-        int    $priority,
+        int $priority,
         string $strategy = 'sync',
-        array  $options = []
-    ): self
-    {
+        array $options = []
+    ): self {
         $options['priority'] = $priority;
+
         return $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
     }
 
@@ -528,19 +521,18 @@ trait HookableTrait
     protected function safeExecuteHooks(
         string $method,
         string $phase,
-        mixed  $data = null,
-        array  $parameters = [],
-        mixed  $result = null
-    ): void
-    {
+        mixed $data = null,
+        array $parameters = [],
+        mixed $result = null
+    ): void {
         try {
             $this->executeHooksIfSupported($method, $phase, $data, $parameters, $result);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Hook execution failed but continuing', [
+            Log::warning('Hook execution failed but continuing', [
                 'service' => static::class,
                 'method' => $method,
                 'phase' => $phase,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -551,12 +543,11 @@ trait HookableTrait
     protected function executeHooksIfSupported(
         string $method,
         string $phase,
-        mixed  $data = null,
-        array  $parameters = [],
-        mixed  $result = null
-    ): void
-    {
-        if (!$this->methodSupportsHooks($method)) {
+        mixed $data = null,
+        array $parameters = [],
+        mixed $result = null
+    ): void {
+        if (! $this->methodSupportsHooks($method)) {
             return;
         }
 

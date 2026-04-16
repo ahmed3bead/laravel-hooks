@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 class ConditionalHookStrategy implements HookExecutionStrategy
 {
     private HookExecutionStrategy $strategy;
+
     private array $conditions = [];
 
     public function __construct(HookExecutionStrategy $strategy)
@@ -24,7 +25,7 @@ class ConditionalHookStrategy implements HookExecutionStrategy
 
     public function getName(): string
     {
-        return 'conditional_' . $this->strategy->getName();
+        return 'conditional_'.$this->strategy->getName();
     }
 
     public function supportsRetry(): bool
@@ -35,12 +36,13 @@ class ConditionalHookStrategy implements HookExecutionStrategy
     public function execute(HookJobInterface $hook, HookContext $context): void
     {
         foreach ($this->conditions as $condition) {
-            if (!$condition($hook, $context)) {
+            if (! $condition($hook, $context)) {
                 Log::debug('Conditional hook strategy condition failed', [
                     'hook' => get_class($hook),
                     'strategy' => $this->strategy->getName(),
-                    'context' => $context->toArray()
+                    'context' => $context->toArray(),
                 ]);
+
                 return;
             }
         }
@@ -51,20 +53,21 @@ class ConditionalHookStrategy implements HookExecutionStrategy
     public function addCondition(callable $condition): self
     {
         $this->conditions[] = $condition;
+
         return $this;
     }
 
     public function onlyInEnvironment(string $environment): self
     {
         return $this->addCondition(
-            fn() => app()->environment($environment)
+            fn () => app()->environment($environment)
         );
     }
 
     public function onlyWhenConfigEnabled(string $configKey): self
     {
         return $this->addCondition(
-            fn() => config($configKey, false)
+            fn () => config($configKey, false)
         );
     }
 }

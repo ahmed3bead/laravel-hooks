@@ -19,6 +19,7 @@ class BatchProcessorJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 300;
 
     public function __construct(private array $batch)
@@ -33,7 +34,7 @@ class BatchProcessorJob implements ShouldQueue
     {
         Log::info('Processing hook batch', [
             'batch_size' => count($this->batch),
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
 
         $successful = 0;
@@ -50,7 +51,7 @@ class BatchProcessorJob implements ShouldQueue
                 } else {
                     Log::debug('Batched hook skipped due to conditions', [
                         'hook' => get_class($hook),
-                        'context' => $context->toArray()
+                        'context' => $context->toArray(),
                     ]);
                 }
             } catch (\Exception $e) {
@@ -58,7 +59,7 @@ class BatchProcessorJob implements ShouldQueue
                 Log::error('Batched hook execution failed', [
                     'hook' => get_class($item['hook']),
                     'context' => $item['context']->toArray(),
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -66,7 +67,7 @@ class BatchProcessorJob implements ShouldQueue
         Log::info('Hook batch processing completed', [
             'total' => count($this->batch),
             'successful' => $successful,
-            'failed' => $failed
+            'failed' => $failed,
         ]);
     }
 
@@ -77,7 +78,7 @@ class BatchProcessorJob implements ShouldQueue
     {
         Log::error('Batch processor job failed', [
             'batch_size' => count($this->batch),
-            'error' => $exception->getMessage()
+            'error' => $exception->getMessage(),
         ]);
     }
 
@@ -88,7 +89,7 @@ class BatchProcessorJob implements ShouldQueue
     {
         return [
             'batch-processor',
-            'size:' . count($this->batch)
+            'size:'.count($this->batch),
         ];
     }
 }

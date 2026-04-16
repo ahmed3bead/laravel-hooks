@@ -2,7 +2,6 @@
 
 namespace Ahmed3bead\LaravelHooks\Contracts;
 
-use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
 use Ahmed3bead\LaravelHooks\HookContext;
 
 /**
@@ -14,6 +13,8 @@ use Ahmed3bead\LaravelHooks\HookContext;
 interface HookExecutionStrategy
 {
     public function execute(HookJobInterface $hook, HookContext $context): void;
+
     public function getName(): string;
+
     public function supportsRetry(): bool;
 }

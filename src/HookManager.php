@@ -15,12 +15,14 @@ use Illuminate\Support\Facades\Log;
 class HookManager
 {
     private HookRegistry $registry;
+
     private array $middleware = [];
+
     private bool $debugMode = false;
 
-    public function __construct(HookRegistry $registry = null)
+    public function __construct(?HookRegistry $registry = null)
     {
-        $this->registry = $registry ?? new HookRegistry();
+        $this->registry = $registry ?? new HookRegistry;
         $this->debugMode = config('laravel-hooks.debug', false);
     }
 
@@ -62,6 +64,7 @@ class HookManager
         array $options = []
     ): self {
         $options['delay'] = $delay;
+
         return $this->addHook($serviceClass, $method, $phase, $hookClass, 'delay', $options);
     }
 
@@ -108,7 +111,7 @@ class HookManager
                 'strategy' => $strategy,
                 'service' => $serviceClass,
                 'method' => $method,
-                'options' => $options
+                'options' => $options,
             ]);
         }
 
@@ -163,7 +166,7 @@ class HookManager
      */
     public function executeHooks(HookContext $context): void
     {
-        if (!$this->registry->isEnabled()) {
+        if (! $this->registry->isEnabled()) {
             return;
         }
 
@@ -176,7 +179,7 @@ class HookManager
             Log::debug('Executing hooks via manager', [
                 'service' => $serviceClass,
                 'method' => $context->method,
-                'phase' => $context->phase
+                'phase' => $context->phase,
             ]);
         }
 
@@ -192,7 +195,7 @@ class HookManager
                 'service' => $serviceClass,
                 'method' => $context->method,
                 'phase' => $context->phase,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -252,6 +255,7 @@ class HookManager
     public function addMiddleware(callable $middleware): self
     {
         $this->middleware[] = $middleware;
+
         return $this;
     }
 
@@ -261,6 +265,7 @@ class HookManager
     public function clearMiddleware(): self
     {
         $this->middleware = [];
+
         return $this;
     }
 
@@ -270,6 +275,7 @@ class HookManager
     public function setDebugMode(bool $debug): self
     {
         $this->debugMode = $debug;
+
         return $this;
     }
 
@@ -279,6 +285,7 @@ class HookManager
     public function registerStrategy(string $name, HookExecutionStrategy $strategy): self
     {
         $this->registry->registerStrategy($name, $strategy);
+
         return $this;
     }
 
@@ -288,6 +295,7 @@ class HookManager
     public function removeHooks(string $serviceClass, string $method, string $phase): self
     {
         $this->registry->removeHooks($serviceClass, $method, $phase);
+
         return $this;
     }
 
@@ -301,6 +309,7 @@ class HookManager
         string $hookClass
     ): self {
         $this->registry->removeHook($serviceClass, $method, $phase, $hookClass);
+
         return $this;
     }
 
@@ -310,6 +319,7 @@ class HookManager
     public function clearAll(): self
     {
         $this->registry->clearAll();
+
         return $this;
     }
 
@@ -319,6 +329,7 @@ class HookManager
     public function enable(bool $enabled = true): self
     {
         $this->registry->setEnabled($enabled);
+
         return $this;
     }
 
@@ -345,7 +356,7 @@ class HookManager
     {
         return array_merge($this->registry->getStats(), [
             'middleware_count' => count($this->middleware),
-            'debug_mode' => $this->debugMode
+            'debug_mode' => $this->debugMode,
         ]);
     }
 
@@ -370,7 +381,7 @@ class HookManager
      */
     private function validatePhase(string $phase): void
     {
-        if (!in_array($phase, ['before', 'after', 'error'])) {
+        if (! in_array($phase, ['before', 'after', 'error'])) {
             throw new \InvalidArgumentException("Invalid hook phase: {$phase}. Must be 'before', 'after', or 'error'.");
         }
     }
@@ -382,9 +393,9 @@ class HookManager
     {
         $validStrategies = ['sync', 'queue', 'delay', 'batch'];
 
-        if (!in_array($strategy, $validStrategies)) {
+        if (! in_array($strategy, $validStrategies)) {
             throw new \InvalidArgumentException(
-                "Invalid hook strategy: {$strategy}. Must be one of: " . implode(', ', $validStrategies)
+                "Invalid hook strategy: {$strategy}. Must be one of: ".implode(', ', $validStrategies)
             );
         }
     }
@@ -399,7 +410,7 @@ class HookManager
         foreach ($this->middleware as $middleware) {
             $modifiedContext = $middleware($modifiedContext);
 
-            if (!$modifiedContext instanceof HookContext) {
+            if (! $modifiedContext instanceof HookContext) {
                 throw new \RuntimeException('Middleware must return a HookContext instance');
             }
         }

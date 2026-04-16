@@ -1,19 +1,19 @@
 <?php
 
-use Ahmed3bead\LaravelHooks\HookRegistry;
-use Ahmed3bead\LaravelHooks\HookContext;
-use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
 use Ahmed3bead\LaravelHooks\Contracts\HookExecutionStrategy;
+use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
+use Ahmed3bead\LaravelHooks\HookContext;
+use Ahmed3bead\LaravelHooks\HookRegistry;
 
 // Minimal hook for testing
 function makeHookClass(string $name = 'TestHook'): string
 {
-    $class = 'TestHook_' . $name . '_' . uniqid();
+    $class = 'TestHook_'.$name.'_'.uniqid();
     eval("
-        class {$class} implements " . HookJobInterface::class . " {
-            public static array \$calls = [];
-            public function handle(" . HookContext::class . " \$ctx): void { self::\$calls[] = \$ctx; }
-            public function shouldExecute(" . HookContext::class . " \$ctx): bool { return true; }
+        class {$class} implements ".HookJobInterface::class.' {
+            public static array $calls = [];
+            public function handle('.HookContext::class.' $ctx): void { self::$calls[] = $ctx; }
+            public function shouldExecute('.HookContext::class." \$ctx): bool { return true; }
             public function getPriority(): int { return 100; }
             public function getRetryAttempts(): int { return 1; }
             public function getRetryDelay(): int { return 0; }
@@ -21,20 +21,22 @@ function makeHookClass(string $name = 'TestHook'): string
             public function isAsync(): bool { return false; }
             public function getQueueName(): string { return 'default'; }
             public function getMetadata(): array { return []; }
-            public function execute(" . HookContext::class . " \$ctx): void { \$this->handle(\$ctx); }
+            public function execute(".HookContext::class.' $ctx): void { $this->handle($ctx); }
         }
-    ");
+    ');
+
     return $class;
 }
 
 function makeContext(string $method = 'create', string $phase = 'after'): HookContext
 {
-    $service = new stdClass();
+    $service = new stdClass;
+
     return new HookContext($method, $phase, null, [], null, $service);
 }
 
 test('registerHook stores a hook', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('Store');
 
     $registry->registerHook('App\\MyService', 'create', 'after', $hookClass);
@@ -45,7 +47,7 @@ test('registerHook stores a hook', function () {
 });
 
 test('registerGlobalHook stores a global hook', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('Global');
 
     $registry->registerGlobalHook('create', 'after', $hookClass);
@@ -56,7 +58,7 @@ test('registerGlobalHook stores a global hook', function () {
 });
 
 test('getHooks returns empty when disabled', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('Disabled');
 
     $registry->registerHook('App\\MyService', 'create', 'after', $hookClass);
@@ -66,7 +68,7 @@ test('getHooks returns empty when disabled', function () {
 });
 
 test('hooks are sorted by priority', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $highClass = makeHookClass('High');
     $lowClass = makeHookClass('Low');
 
@@ -80,7 +82,7 @@ test('hooks are sorted by priority', function () {
 });
 
 test('disabled hooks are filtered out', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('Filterable');
 
     $registry->registerHook('App\\MyService', 'create', 'after', $hookClass, 'sync', ['enabled' => false]);
@@ -90,7 +92,7 @@ test('disabled hooks are filtered out', function () {
 });
 
 test('removeHooks removes all hooks for a key', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('Remove');
 
     $registry->registerHook('App\\MyService', 'create', 'after', $hookClass);
@@ -100,7 +102,7 @@ test('removeHooks removes all hooks for a key', function () {
 });
 
 test('removeHook removes specific hook', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookA = makeHookClass('A');
     $hookB = makeHookClass('B');
 
@@ -114,7 +116,7 @@ test('removeHook removes specific hook', function () {
 });
 
 test('clearAll removes all hooks', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('ClearAll');
 
     $registry->registerHook('App\\MyService', 'create', 'after', $hookClass);
@@ -127,7 +129,7 @@ test('clearAll removes all hooks', function () {
 });
 
 test('getStats returns correct counts', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     $hookClass = makeHookClass('Stats');
 
     $registry->registerHook('App\\MyService', 'create', 'after', $hookClass);
@@ -142,19 +144,28 @@ test('getStats returns correct counts', function () {
 });
 
 test('setEnabled toggles hook execution', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
     expect($registry->isEnabled())->toBeTrue();
     $registry->setEnabled(false);
     expect($registry->isEnabled())->toBeFalse();
 });
 
 test('registerStrategy adds custom strategy', function () {
-    $registry = new HookRegistry();
+    $registry = new HookRegistry;
 
-    $customStrategy = new class implements HookExecutionStrategy {
+    $customStrategy = new class implements HookExecutionStrategy
+    {
         public function execute(HookJobInterface $hook, HookContext $context): void {}
-        public function getName(): string { return 'custom'; }
-        public function supportsRetry(): bool { return false; }
+
+        public function getName(): string
+        {
+            return 'custom';
+        }
+
+        public function supportsRetry(): bool
+        {
+            return false;
+        }
     };
 
     $registry->registerStrategy('custom', $customStrategy);

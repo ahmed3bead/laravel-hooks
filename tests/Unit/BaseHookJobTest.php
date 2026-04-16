@@ -7,14 +7,17 @@ use Ahmed3bead\LaravelHooks\HookContext;
 class ConcreteHookJob extends BaseHookJob
 {
     public array $handled = [];
+
     public bool $shouldFail = false;
+
     public bool $beforeCalled = false;
+
     public bool $afterCalled = false;
 
     public function handle(HookContext $context): void
     {
         if ($this->shouldFail) {
-            throw new \RuntimeException('Hook intentionally failed');
+            throw new RuntimeException('Hook intentionally failed');
         }
         $this->handled[] = $context->method;
     }
@@ -48,11 +51,11 @@ class ConcreteHookJob extends BaseHookJob
 
 function makeCtx(string $method = 'create', string $phase = 'after'): HookContext
 {
-    return new HookContext($method, $phase, null, [], null, new stdClass());
+    return new HookContext($method, $phase, null, [], null, new stdClass);
 }
 
 test('execute calls handle and lifecycle methods', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $hook->execute(makeCtx('create'));
 
     expect($hook->handled)->toContain('create')
@@ -61,34 +64,34 @@ test('execute calls handle and lifecycle methods', function () {
 });
 
 test('execute rethrows exceptions from handle', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $hook->shouldFail = true;
 
     expect(fn () => $hook->execute(makeCtx()))->toThrow(RuntimeException::class);
 });
 
 test('shouldExecute returns true with no conditions', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     expect($hook->shouldExecute(makeCtx()))->toBeTrue();
 });
 
 test('shouldExecute returns false when condition fails', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $hook->exposeAddCondition(fn ($ctx) => false, 'Always false');
 
     expect($hook->shouldExecute(makeCtx()))->toBeFalse();
 });
 
 test('shouldExecute returns true when all conditions pass', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $hook->exposeAddCondition(fn ($ctx) => true, 'Always true')
-         ->exposeAddCondition(fn ($ctx) => true, 'Also true');
+        ->exposeAddCondition(fn ($ctx) => true, 'Also true');
 
     expect($hook->shouldExecute(makeCtx()))->toBeTrue();
 });
 
 test('onlyForMethods condition filters by method name', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $hook->exposeOnlyForMethods(['create', 'update']);
 
     expect($hook->shouldExecute(makeCtx('create')))->toBeTrue()
@@ -96,7 +99,7 @@ test('onlyForMethods condition filters by method name', function () {
 });
 
 test('onlyForPhase condition filters by phase', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $hook->exposeOnlyForPhase('before');
 
     expect($hook->shouldExecute(makeCtx('create', 'before')))->toBeTrue()
@@ -104,27 +107,27 @@ test('onlyForPhase condition filters by phase', function () {
 });
 
 test('default priority is 100', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     expect($hook->getPriority())->toBe(100);
 });
 
 test('default retry attempts is 3', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     expect($hook->getRetryAttempts())->toBe(3);
 });
 
 test('default async is false', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     expect($hook->isAsync())->toBeFalse();
 });
 
 test('default queue name is default', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     expect($hook->getQueueName())->toBe('default');
 });
 
 test('getMetadata includes class, priority, async, queue', function () {
-    $hook = new ConcreteHookJob();
+    $hook = new ConcreteHookJob;
     $meta = $hook->getMetadata();
 
     expect($meta)->toHaveKey('class')

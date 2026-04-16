@@ -19,8 +19,11 @@ use Illuminate\Support\Facades\Log;
 class HookRegistry
 {
     private array $hooks = [];
+
     private array $strategies = [];
+
     private array $globalHooks = [];
+
     private bool $enabled = true;
 
     public function __construct()
@@ -34,10 +37,10 @@ class HookRegistry
     private function initializeStrategies(): void
     {
         $this->strategies = [
-            'sync' => new SyncHookStrategy(),
-            'queue' => new QueuedHookStrategy(),
-            'delay' => new DelayedHookStrategy(),
-            'batch' => new BatchedHookStrategy()
+            'sync' => new SyncHookStrategy,
+            'queue' => new QueuedHookStrategy,
+            'delay' => new DelayedHookStrategy,
+            'batch' => new BatchedHookStrategy,
         ];
     }
 
@@ -54,7 +57,7 @@ class HookRegistry
     ): self {
         $key = $this->makeKey($serviceClass, $method, $phase);
 
-        if (!isset($this->hooks[$key])) {
+        if (! isset($this->hooks[$key])) {
             $this->hooks[$key] = [];
         }
 
@@ -63,7 +66,7 @@ class HookRegistry
             'strategy' => $strategy,
             'options' => $options,
             'priority' => $options['priority'] ?? 100,
-            'enabled' => $options['enabled'] ?? true
+            'enabled' => $options['enabled'] ?? true,
         ];
 
         $this->hooks[$key][] = $hookConfig;
@@ -76,7 +79,7 @@ class HookRegistry
             'method' => $method,
             'phase' => $phase,
             'hook' => $hookClass,
-            'strategy' => $strategy
+            'strategy' => $strategy,
         ]);
 
         return $this;
@@ -94,7 +97,7 @@ class HookRegistry
     ): self {
         $key = $this->makeKey('*', $method, $phase);
 
-        if (!isset($this->globalHooks[$key])) {
+        if (! isset($this->globalHooks[$key])) {
             $this->globalHooks[$key] = [];
         }
 
@@ -103,7 +106,7 @@ class HookRegistry
             'strategy' => $strategy,
             'options' => $options,
             'priority' => $options['priority'] ?? 100,
-            'enabled' => $options['enabled'] ?? true
+            'enabled' => $options['enabled'] ?? true,
         ];
 
         $this->globalHooks[$key][] = $hookConfig;
@@ -117,7 +120,7 @@ class HookRegistry
      */
     public function getHooks(string $serviceClass, string $method, string $phase): array
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return [];
         }
 
@@ -134,9 +137,9 @@ class HookRegistry
         );
 
         // Filter enabled hooks and sort by priority
-        $enabledHooks = array_filter($hooks, fn($hook) => $hook['enabled']);
+        $enabledHooks = array_filter($hooks, fn ($hook) => $hook['enabled']);
 
-        usort($enabledHooks, fn($a, $b) => $a['priority'] <=> $b['priority']);
+        usort($enabledHooks, fn ($a, $b) => $a['priority'] <=> $b['priority']);
 
         return $enabledHooks;
     }
@@ -156,7 +159,7 @@ class HookRegistry
             'service' => $serviceClass,
             'method' => $method,
             'phase' => $phase,
-            'hook_count' => count($hooks)
+            'hook_count' => count($hooks),
         ]);
 
         foreach ($hooks as $hookConfig) {
@@ -167,7 +170,7 @@ class HookRegistry
                     'hook' => $hookConfig['class'],
                     'strategy' => $hookConfig['strategy'],
                     'error' => $e->getMessage(),
-                    'context' => $context->toArray()
+                    'context' => $context->toArray(),
                 ]);
 
                 // Continue with other hooks unless configured to stop
@@ -202,13 +205,13 @@ class HookRegistry
      */
     private function createHookInstance(string $hookClass, array $options): HookJobInterface
     {
-        if (!class_exists($hookClass)) {
+        if (! class_exists($hookClass)) {
             throw new \InvalidArgumentException("Hook class {$hookClass} does not exist");
         }
 
         $hook = app($hookClass);
 
-        if (!$hook instanceof HookJobInterface) {
+        if (! $hook instanceof HookJobInterface) {
             throw new \InvalidArgumentException("Hook class {$hookClass} must implement HookJobInterface");
         }
 
@@ -220,7 +223,7 @@ class HookRegistry
      */
     private function getStrategy(string $strategyName, array $options): HookExecutionStrategy
     {
-        if (!isset($this->strategies[$strategyName])) {
+        if (! isset($this->strategies[$strategyName])) {
             throw new \InvalidArgumentException("Unknown hook strategy: {$strategyName}");
         }
 
@@ -252,6 +255,7 @@ class HookRegistry
     public function registerStrategy(string $name, HookExecutionStrategy $strategy): self
     {
         $this->strategies[$name] = $strategy;
+
         return $this;
     }
 
@@ -262,6 +266,7 @@ class HookRegistry
     {
         $key = $this->makeKey($serviceClass, $method, $phase);
         unset($this->hooks[$key]);
+
         return $this;
     }
 
@@ -275,7 +280,7 @@ class HookRegistry
         if (isset($this->hooks[$key])) {
             $this->hooks[$key] = array_filter(
                 $this->hooks[$key],
-                fn($hook) => $hook['class'] !== $hookClass
+                fn ($hook) => $hook['class'] !== $hookClass
             );
         }
 
@@ -289,6 +294,7 @@ class HookRegistry
     {
         $this->hooks = [];
         $this->globalHooks = [];
+
         return $this;
     }
 
@@ -298,6 +304,7 @@ class HookRegistry
     public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+
         return $this;
     }
 
@@ -316,7 +323,7 @@ class HookRegistry
     {
         return [
             'service_hooks' => $this->hooks,
-            'global_hooks' => $this->globalHooks
+            'global_hooks' => $this->globalHooks,
         ];
     }
 
@@ -335,7 +342,7 @@ class HookRegistry
             'total_hooks' => $totalServiceHooks + $totalGlobalHooks,
             'registered_strategies' => array_keys($this->strategies),
             'service_hook_keys' => array_keys($this->hooks),
-            'global_hook_keys' => array_keys($this->globalHooks)
+            'global_hook_keys' => array_keys($this->globalHooks),
         ];
     }
 
@@ -353,7 +360,7 @@ class HookRegistry
     private function sortHooksByPriority(string $key): void
     {
         if (isset($this->hooks[$key])) {
-            usort($this->hooks[$key], fn($a, $b) => $a['priority'] <=> $b['priority']);
+            usort($this->hooks[$key], fn ($a, $b) => $a['priority'] <=> $b['priority']);
         }
     }
 
@@ -363,7 +370,7 @@ class HookRegistry
     private function sortGlobalHooksByPriority(string $key): void
     {
         if (isset($this->globalHooks[$key])) {
-            usort($this->globalHooks[$key], fn($a, $b) => $a['priority'] <=> $b['priority']);
+            usort($this->globalHooks[$key], fn ($a, $b) => $a['priority'] <=> $b['priority']);
         }
     }
 

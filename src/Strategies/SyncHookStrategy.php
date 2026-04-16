@@ -33,8 +33,10 @@ class SyncHookStrategy implements HookExecutionStrategy
             try {
                 if ($hook->shouldExecute($context)) {
                     $hook->execute($context);
+
                     return;
                 }
+
                 return; // Hook chose not to execute
             } catch (\Exception $e) {
                 $attempts++;
@@ -44,7 +46,7 @@ class SyncHookStrategy implements HookExecutionStrategy
                         'hook' => get_class($hook),
                         'attempts' => $attempts,
                         'context' => $context->toArray(),
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                     throw $e;
                 }

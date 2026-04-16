@@ -2,7 +2,6 @@
 
 use Ahmed3bead\LaravelHooks\HookManager;
 use Ahmed3bead\LaravelHooks\HookRegistry;
-use Ahmed3bead\LaravelHooks\LaravelHooksServiceProvider;
 
 test('HookRegistry is bound as singleton', function () {
     $a = app(HookRegistry::class);

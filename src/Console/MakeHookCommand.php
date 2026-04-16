@@ -3,8 +3,8 @@
 namespace Ahmed3bead\LaravelHooks\Console;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Str;
 
 class MakeHookCommand extends Command
 {
@@ -52,7 +52,7 @@ class MakeHookCommand extends Command
                     'validation' => 'Validation Hook (business rules)',
                     'security' => 'Security Hook (rate limiting, monitoring)',
                     'analytics' => 'Analytics Hook (data tracking)',
-                    'general' => 'General Purpose Hook'
+                    'general' => 'General Purpose Hook',
                 ],
                 'general'
             );
@@ -70,13 +70,13 @@ class MakeHookCommand extends Command
         }
 
         // Get phase if not specified
-        if (!in_array($phase, ['before', 'after', 'error'])) {
+        if (! in_array($phase, ['before', 'after', 'error'])) {
             $phase = $this->choice(
                 'When should this hook execute?',
                 [
                     'before' => 'Before method execution',
                     'after' => 'After method execution',
-                    'error' => 'On method error'
+                    'error' => 'On method error',
                 ],
                 'after'
             );
@@ -90,8 +90,9 @@ class MakeHookCommand extends Command
         $namespace = $this->getNamespace();
         $path = $this->getPath($className);
 
-        if ($this->files->exists($path) && !$force) {
+        if ($this->files->exists($path) && ! $force) {
             $this->error("Hook {$className} already exists! Use --force to overwrite.");
+
             return 1;
         }
 
@@ -104,7 +105,7 @@ class MakeHookCommand extends Command
             'priority' => $priority,
             'dispatchMode' => $dispatchMode,
             'hasCondition' => $hasCondition,
-            'type' => $type
+            'type' => $type,
         ]);
 
         $this->makeDirectory($path);
@@ -124,10 +125,18 @@ class MakeHookCommand extends Command
 
     protected function getDispatchMode(): string
     {
-        if ($this->option('sync')) return 'sync';
-        if ($this->option('queue')) return 'queue';
-        if ($this->option('delay')) return 'delay';
-        if ($this->option('batch')) return 'batch';
+        if ($this->option('sync')) {
+            return 'sync';
+        }
+        if ($this->option('queue')) {
+            return 'queue';
+        }
+        if ($this->option('delay')) {
+            return 'delay';
+        }
+        if ($this->option('batch')) {
+            return 'batch';
+        }
 
         return $this->choice(
             'How should this hook be dispatched?',
@@ -135,7 +144,7 @@ class MakeHookCommand extends Command
                 'sync' => 'Synchronous (immediate execution)',
                 'queue' => 'Queued (background execution)',
                 'delay' => 'Delayed (scheduled execution)',
-                'batch' => 'Batched (bulk processing)'
+                'batch' => 'Batched (bulk processing)',
             ],
             'sync'
         );
@@ -144,9 +153,10 @@ class MakeHookCommand extends Command
     protected function generateClassName(string $name): string
     {
         $name = Str::studly($name);
-        if (!Str::endsWith($name, 'Hook')) {
+        if (! Str::endsWith($name, 'Hook')) {
             $name .= 'Hook';
         }
+
         return $name;
     }
 
@@ -157,12 +167,12 @@ class MakeHookCommand extends Command
 
     protected function getPath(string $className): string
     {
-        return app_path('Hooks/' . $className . '.php');
+        return app_path('Hooks/'.$className.'.php');
     }
 
     protected function makeDirectory(string $path): void
     {
-        if (!$this->files->isDirectory(dirname($path))) {
+        if (! $this->files->isDirectory(dirname($path))) {
             $this->files->makeDirectory(dirname($path), 0755, true);
         }
     }
@@ -211,14 +221,14 @@ class MakeHookCommand extends Command
         $content = $stub;
 
         foreach ($replacements as $key => $value) {
-            $placeholder = '{{ ' . $key . ' }}';
+            $placeholder = '{{ '.$key.' }}';
 
             if ($key === 'methods') {
                 if (is_array($value)) {
                     if (in_array('*', $value)) {
-                        $value = "// Applies to all methods";
+                        $value = '// Applies to all methods';
                     } else {
-                        $value = "\$this->onlyForMethods([" . implode(', ', array_map(fn($m) => "'{$m}'", $value)) . "]);";
+                        $value = '$this->onlyForMethods(['.implode(', ', array_map(fn ($m) => "'{$m}'", $value)).']);';
                     }
                 } else {
                     $value = "\$this->onlyForMethods(['{$value}']);";
@@ -241,11 +251,11 @@ class MakeHookCommand extends Command
 
     protected function getDispatchModeConfig(string $mode): string
     {
-        return match($mode) {
+        return match ($mode) {
             'queue' => "protected bool \$async = true;\n    protected string \$queueName = 'default';",
             'delay' => "protected bool \$async = true;\n    protected string \$queueName = 'default';\n    // Note: Use addServiceDelayedHook() with delay parameter",
             'batch' => "protected bool \$async = true;\n    protected string \$queueName = 'batch';\n    // Note: Use addServiceBatchedHook() for batching",
-            default => "// Synchronous execution"
+            default => '// Synchronous execution'
         };
     }
 
@@ -257,7 +267,7 @@ class MakeHookCommand extends Command
 
         $methodStr = in_array('*', $methods) ? 'create' : (is_array($methods) ? $methods[0] : $methods);
 
-        $methodName = match($dispatchMode) {
+        $methodName = match ($dispatchMode) {
             'sync' => 'addServiceSyncHook',
             'queue' => 'addServiceQueuedHook',
             'delay' => 'addServiceDelayedHook',
@@ -283,10 +293,10 @@ class MakeHookCommand extends Command
         $this->line('');
         $this->line('<comment>Next Steps:</comment>');
         $this->line('');
-        $this->line("1. Customize the hook logic in the handle() method");
+        $this->line('1. Customize the hook logic in the handle() method');
         $this->line("2. Register the hook in your service's registerServiceHooks() method");
-        $this->line("3. Test the hook with: <info>php artisan hooks:manage test</info>");
-        $this->line("4. View all hooks with: <info>php artisan hooks:manage list</info>");
+        $this->line('3. Test the hook with: <info>php artisan hooks:manage test</info>');
+        $this->line('4. View all hooks with: <info>php artisan hooks:manage list</info>');
         $this->line('');
     }
 
@@ -725,8 +735,23 @@ class {{ class }} extends BaseHookJob
     }
 
     // Placeholder methods for other stubs - implement similar to above
-    protected function getCacheStub(): string { return $this->getBaseStub(); }
-    protected function getLoggingStub(): string { return $this->getBaseStub(); }
-    protected function getValidationStub(): string { return $this->getBaseStub(); }
-    protected function getSecurityStub(): string { return $this->getBaseStub(); }
+    protected function getCacheStub(): string
+    {
+        return $this->getBaseStub();
+    }
+
+    protected function getLoggingStub(): string
+    {
+        return $this->getBaseStub();
+    }
+
+    protected function getValidationStub(): string
+    {
+        return $this->getBaseStub();
+    }
+
+    protected function getSecurityStub(): string
+    {
+        return $this->getBaseStub();
+    }
 }

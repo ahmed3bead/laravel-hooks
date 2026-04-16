@@ -15,9 +15,7 @@ use Illuminate\Support\Facades\Queue;
  */
 class DelayedHookStrategy implements HookExecutionStrategy
 {
-    public function __construct(private int $delay = 30)
-    {
-    }
+    public function __construct(private int $delay = 30) {}
 
     public function getName(): string
     {
@@ -40,6 +38,7 @@ class DelayedHookStrategy implements HookExecutionStrategy
     public function setDelay(int $delay): self
     {
         $this->delay = $delay;
+
         return $this;
     }
 

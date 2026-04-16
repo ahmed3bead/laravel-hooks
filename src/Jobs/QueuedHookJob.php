@@ -101,7 +101,7 @@ class QueuedHookJob implements ShouldQueue
             'hook:'.get_class($this->hook),
             'method:'.$this->context->method,
             'phase:'.$this->context->phase,
-            'service:'.get_class($this->context->service),
+            'target:'.get_class($this->context->target),
         ];
     }
 }

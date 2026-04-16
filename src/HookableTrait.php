@@ -8,11 +8,11 @@ use Illuminate\Support\Facades\Log;
 /**
  * Hook Trait
  *
- * Adds before/after/error lifecycle hooks to any class — services,
- * controllers, jobs, models, or plain PHP objects.
+ * Adds before/after/error lifecycle hooks to any class — controllers,
+ * services, jobs, models, or plain PHP objects.
  *
  * Quick-start from inside the class:
- *   $this->hook('before', 'create', MyHook::class);
+ *   $this->afterHook('create', MyHook::class);
  *
  * Quick-start from outside (service provider, test, anywhere):
  *   app(HookManager::class)->addSyncHook(MyClass::class, 'create', 'after', MyHook::class);
@@ -29,7 +29,7 @@ trait HookableTrait
     protected array $hookableMethods = [];
 
     // -------------------------------------------------------------------------
-    // Simple public API — works in any class (services, controllers, jobs, etc.)
+    // Public API — works in any class (controllers, services, jobs, models, etc.)
     // -------------------------------------------------------------------------
 
     /**
@@ -48,7 +48,7 @@ trait HookableTrait
         string $strategy = 'sync',
         array $options = []
     ): static {
-        return $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
+        return $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
     }
 
     /**
@@ -56,7 +56,7 @@ trait HookableTrait
      */
     public function beforeHook(string $method, string $hookClass, array $options = []): static
     {
-        return $this->addServiceHook('before', $method, $hookClass, 'sync', $options);
+        return $this->addHookRegistration('before', $method, $hookClass, 'sync', $options);
     }
 
     /**
@@ -64,25 +64,70 @@ trait HookableTrait
      */
     public function afterHook(string $method, string $hookClass, array $options = []): static
     {
-        return $this->addServiceHook('after', $method, $hookClass, 'sync', $options);
+        return $this->addHookRegistration('after', $method, $hookClass, 'sync', $options);
     }
 
     /**
-     * Register an error-hook (fires when the method throws).
+     * Register a synchronous error-hook (fires when the method throws).
      */
     public function errorHook(string $method, string $hookClass, array $options = []): static
     {
-        return $this->addServiceHook('error', $method, $hookClass, 'sync', $options);
+        return $this->addHookRegistration('error', $method, $hookClass, 'sync', $options);
     }
 
     /**
-     * Register a synchronous hook (explicit sync alias).
+     * Register a synchronous hook — explicit sync alias.
      *
      * @param  string  $phase  'before', 'after', or 'error'
      */
     public function syncHook(string $phase, string $method, string $hookClass, array $options = []): static
     {
-        return $this->addServiceHook($phase, $method, $hookClass, 'sync', $options);
+        return $this->addHookRegistration($phase, $method, $hookClass, 'sync', $options);
+    }
+
+    /**
+     * Register an inline callable as a synchronous hook — no separate class needed.
+     *
+     * Example:
+     *   $this->syncHookWithLogic('after', 'create', function (HookContext $ctx) {
+     *       Log::info('Created', ['method' => $ctx->method]);
+     *   });
+     *
+     * @param  string  $phase  'before', 'after', or 'error'
+     * @param  string  $method  The method to attach the hook to
+     * @param  callable  $callback  Callable that receives a HookContext argument
+     * @param  array  $options  Optional: priority, enabled, ...
+     */
+    public function syncHookWithLogic(
+        string $phase,
+        string $method,
+        callable $callback,
+        array $options = []
+    ): static {
+        return $this->hookWithLogic($phase, $method, $callback, 'sync', $options);
+    }
+
+    /**
+     * Register an inline callable as a hook with any strategy.
+     *
+     * @param  string  $phase  'before', 'after', or 'error'
+     * @param  string  $method  The method to attach the hook to
+     * @param  callable  $callback  Callable that receives a HookContext argument
+     * @param  string  $strategy  'sync' (default), 'queue', 'delay', or 'batch'
+     * @param  array  $options  Optional: priority, enabled, ...
+     */
+    public function hookWithLogic(
+        string $phase,
+        string $method,
+        callable $callback,
+        string $strategy = 'sync',
+        array $options = []
+    ): static {
+        // Generate a unique class alias for this closure and bind it in the container.
+        $uniqueId = 'closure_hook_'.spl_object_id((object) []).'_'.uniqid();
+        app()->bind($uniqueId, fn () => new ClosureHookJob($callback));
+
+        return $this->addHookRegistration($phase, $method, $uniqueId, $strategy, $options);
     }
 
     // -------------------------------------------------------------------------
@@ -90,9 +135,9 @@ trait HookableTrait
     // -------------------------------------------------------------------------
 
     /**
-     * Add a synchronous hook
+     * Add a synchronous hook registration.
      */
-    protected function addServiceSyncHook(
+    protected function addSyncHookRegistration(
         string $phase,
         string $method,
         string $hookClass,
@@ -110,22 +155,22 @@ trait HookableTrait
     }
 
     /**
-     * Get or create the hook manager instance
+     * Get or create the HookManager instance.
      */
     protected function getHookManager(): HookManager
     {
         if ($this->hookManager === null) {
             $this->hookManager = app(HookManager::class);
-            $this->initializeServiceHooks();
+            $this->initializeHooks();
         }
 
         return $this->hookManager;
     }
 
     /**
-     * Initialize hooks for this service
+     * Initialize hooks for this class (calls registerHooks() if defined).
      */
-    private function initializeServiceHooks(): void
+    private function initializeHooks(): void
     {
         if ($this->hooksInitialized) {
             return;
@@ -139,18 +184,23 @@ trait HookableTrait
     }
 
     /**
-     * Method that concrete services should implement to register their specific hooks.
-     * This is optional - services only need to implement this if they have custom hooks.
+     * Override this method in your class to register hooks automatically on instantiation.
+     *
+     * Example:
+     *   protected function registerHooks(): void
+     *   {
+     *       $this->afterHook('create', MyHook::class);
+     *   }
      */
-    protected function registerServiceHooks(): void
+    protected function registerHooks(): void
     {
-        // Default empty implementation. Override in your service to register hooks.
+        // Default empty implementation.
     }
 
     /**
-     * Add a queued hook
+     * Add a queued hook registration.
      */
-    protected function addServiceQueuedHook(
+    protected function addQueuedHookRegistration(
         string $phase,
         string $method,
         string $hookClass,
@@ -168,9 +218,9 @@ trait HookableTrait
     }
 
     /**
-     * Add a delayed hook
+     * Add a delayed hook registration.
      */
-    protected function addServiceDelayedHook(
+    protected function addDelayedHookRegistration(
         string $phase,
         string $method,
         string $hookClass,
@@ -190,9 +240,9 @@ trait HookableTrait
     }
 
     /**
-     * Add a batched hook
+     * Add a batched hook registration.
      */
-    protected function addServiceBatchedHook(
+    protected function addBatchedHookRegistration(
         string $phase,
         string $method,
         string $hookClass,
@@ -210,12 +260,12 @@ trait HookableTrait
     }
 
     /**
-     * Add multiple hooks at once
+     * Add multiple hook registrations at once.
      */
-    protected function addServiceHooks(array $hookDefinitions): self
+    protected function addHookRegistrations(array $hookDefinitions): self
     {
         foreach ($hookDefinitions as $definition) {
-            $this->addServiceHook(
+            $this->addHookRegistration(
                 $definition['phase'],
                 $definition['method'],
                 $definition['hook'],
@@ -228,9 +278,9 @@ trait HookableTrait
     }
 
     /**
-     * Add a hook with custom strategy
+     * Add a hook registration with a custom strategy.
      */
-    protected function addServiceHook(
+    protected function addHookRegistration(
         string $phase,
         string $method,
         string $hookClass,
@@ -250,9 +300,9 @@ trait HookableTrait
     }
 
     /**
-     * Remove hooks for a method
+     * Remove all hooks for a method and phase.
      */
-    protected function removeServiceHooks(string $method, string $phase): self
+    protected function removeHooks(string $method, string $phase): self
     {
         $this->getHookManager()->removeHooks(static::class, $method, $phase);
 
@@ -260,9 +310,9 @@ trait HookableTrait
     }
 
     /**
-     * Remove a specific hook
+     * Remove a specific hook class from a method and phase.
      */
-    protected function removeServiceHook(
+    protected function removeHook(
         string $method,
         string $phase,
         string $hookClass
@@ -273,9 +323,9 @@ trait HookableTrait
     }
 
     /**
-     * Enable/disable hooks for this service
+     * Enable or disable hook execution for this class.
      */
-    protected function enableServiceHooks(bool $enabled = true): self
+    protected function enableHooks(bool $enabled = true): self
     {
         $this->getHookManager()->enable($enabled);
 
@@ -283,15 +333,15 @@ trait HookableTrait
     }
 
     /**
-     * Debug hooks for this service
+     * Debug: return all registered hooks for this class.
      */
-    protected function debugServiceHooks(): array
+    protected function debugHooks(): array
     {
-        return $this->getHookManager()->debugService(static::class);
+        return $this->getHookManager()->debugTarget(static::class);
     }
 
     /**
-     * Get hook execution stats
+     * Get hook execution statistics.
      */
     protected function getHookStats(): array
     {
@@ -299,7 +349,12 @@ trait HookableTrait
     }
 
     /**
-     * Execute a method with automatic hook execution
+     * Execute a method with automatic before/after/error hook execution.
+     *
+     * Usage:
+     *   return $this->executeWithHooks('create', function () use ($data) {
+     *       return MyModel::create($data);
+     *   }, $data);
      */
     protected function executeWithHooks(
         string $method,
@@ -307,26 +362,21 @@ trait HookableTrait
         mixed $data = null,
         array $parameters = []
     ): mixed {
-        // Execute before hooks
         $this->executeBeforeHooks($method, $data, $parameters);
 
         try {
-            // Execute the actual method
             $result = $callback();
-
-            // Execute after hooks with result
             $this->executeAfterHooks($method, $data, $parameters, $result);
 
             return $result;
         } catch (\Exception $e) {
-            // Execute error hooks if implemented
             $this->executeErrorHooks($method, $data, $parameters, $e);
             throw $e;
         }
     }
 
     /**
-     * Execute before hooks for a method
+     * Execute before-hooks for a method.
      */
     protected function executeBeforeHooks(
         string $method,
@@ -341,7 +391,7 @@ trait HookableTrait
             method: $method,
             data: $data,
             parameters: $parameters,
-            service: $this,
+            target: $this,
             user: $this->getCurrentUser(),
             metadata: $this->getHookMetadata($method, 'before')
         );
@@ -350,7 +400,7 @@ trait HookableTrait
     }
 
     /**
-     * Check if hooks should be executed
+     * Check if hooks should be executed.
      */
     protected function shouldExecuteHooks(): bool
     {
@@ -359,7 +409,7 @@ trait HookableTrait
     }
 
     /**
-     * Get current user for hook context
+     * Get the current authenticated user for the hook context.
      */
     protected function getCurrentUser(): ?object
     {
@@ -367,12 +417,12 @@ trait HookableTrait
     }
 
     /**
-     * Get metadata for hook context
+     * Get metadata to attach to the hook context.
      */
     protected function getHookMetadata(string $method, string $phase): array
     {
         return [
-            'service_class' => static::class,
+            'target_class' => static::class,
             'timestamp' => now(),
             'request_id' => request()?->id ?? null,
             'ip_address' => request()?->ip(),
@@ -381,7 +431,7 @@ trait HookableTrait
     }
 
     /**
-     * Execute after hooks for a method
+     * Execute after-hooks for a method.
      */
     protected function executeAfterHooks(
         string $method,
@@ -398,7 +448,7 @@ trait HookableTrait
             data: $data,
             parameters: $parameters,
             result: $result,
-            service: $this,
+            target: $this,
             user: $this->getCurrentUser(),
             metadata: $this->getHookMetadata($method, 'after')
         );
@@ -407,7 +457,7 @@ trait HookableTrait
     }
 
     /**
-     * Execute error hooks (optional)
+     * Execute error-hooks (fires when the method throws; exception is re-thrown after).
      */
     protected function executeErrorHooks(
         string $method,
@@ -419,14 +469,13 @@ trait HookableTrait
             return;
         }
 
-        // Create error context
         $context = new HookContext(
             method: $method,
             phase: 'error',
             data: $data,
             parameters: $parameters,
             result: $error,
-            service: $this,
+            target: $this,
             user: $this->getCurrentUser(),
             metadata: array_merge(
                 $this->getHookMetadata($method, 'error'),
@@ -437,9 +486,8 @@ trait HookableTrait
         try {
             $this->getHookManager()->executeHooks($context);
         } catch (\Exception $hookError) {
-            // Log hook execution error but don't throw
             Log::error('Error hook execution failed', [
-                'service' => static::class,
+                'target' => static::class,
                 'method' => $method,
                 'original_error' => $error?->getMessage(),
                 'hook_error' => $hookError->getMessage(),
@@ -448,12 +496,12 @@ trait HookableTrait
     }
 
     /**
-     * Bulk register hooks from array configuration
+     * Bulk register hooks from an array configuration.
      */
     protected function registerHooksFromConfig(array $config): self
     {
         foreach ($config as $hookDef) {
-            $this->addServiceHook(
+            $this->addHookRegistration(
                 $hookDef['phase'],
                 $hookDef['method'],
                 $hookDef['hook'],
@@ -466,7 +514,7 @@ trait HookableTrait
     }
 
     /**
-     * Register conditional hooks
+     * Register a hook that only runs when a runtime condition passes.
      */
     protected function addConditionalHook(
         string $phase,
@@ -479,11 +527,11 @@ trait HookableTrait
         $options['conditions'] = $options['conditions'] ?? [];
         $options['conditions'][] = $condition;
 
-        return $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
+        return $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
     }
 
     /**
-     * Register hooks for multiple methods at once
+     * Register the same hook on multiple methods at once.
      */
     protected function addHookForMethods(
         string $phase,
@@ -493,14 +541,14 @@ trait HookableTrait
         array $options = []
     ): self {
         foreach ($methods as $method) {
-            $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
+            $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
         }
 
         return $this;
     }
 
     /**
-     * Register prioritized hooks
+     * Register a hook with an explicit priority.
      */
     protected function addPriorityHook(
         string $phase,
@@ -512,11 +560,11 @@ trait HookableTrait
     ): self {
         $options['priority'] = $priority;
 
-        return $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
+        return $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
     }
 
     /**
-     * Safe hook execution that catches and logs errors
+     * Execute hooks safely — logs failures but does not throw.
      */
     protected function safeExecuteHooks(
         string $method,
@@ -529,7 +577,7 @@ trait HookableTrait
             $this->executeHooksIfSupported($method, $phase, $data, $parameters, $result);
         } catch (\Exception $e) {
             Log::warning('Hook execution failed but continuing', [
-                'service' => static::class,
+                'target' => static::class,
                 'method' => $method,
                 'phase' => $phase,
                 'error' => $e->getMessage(),
@@ -538,7 +586,7 @@ trait HookableTrait
     }
 
     /**
-     * Execute hooks only if method supports them
+     * Execute hooks only if the method is in the hookableMethods allow-list.
      */
     protected function executeHooksIfSupported(
         string $method,
@@ -559,23 +607,115 @@ trait HookableTrait
     }
 
     /**
-     * Helper method to check if a method supports hooks.
+     * Check if a method supports hooks.
      * If $hookableMethods is empty, all methods are hookable by default.
      */
     protected function methodSupportsHooks(string $method): bool
     {
         if (empty($this->hookableMethods)) {
-            return true; // all methods hookable by default
+            return true;
         }
 
         return in_array($method, $this->hookableMethods);
     }
 
     /**
-     * Get the service identifier used for hook registration
+     * Get the class identifier used for hook registration.
      */
-    protected function getServiceIdentifier(): string
+    protected function getTargetIdentifier(): string
     {
         return static::class;
+    }
+
+    // -------------------------------------------------------------------------
+    // Deprecated aliases — kept for backward compatibility
+    // -------------------------------------------------------------------------
+
+    /** @deprecated Use addSyncHookRegistration() instead. */
+    protected function addServiceSyncHook(string $phase, string $method, string $hookClass, array $options = []): self
+    {
+        trigger_error('addServiceSyncHook() is deprecated, use addSyncHookRegistration() instead.', E_USER_DEPRECATED);
+
+        return $this->addSyncHookRegistration($phase, $method, $hookClass, $options);
+    }
+
+    /** @deprecated Use addQueuedHookRegistration() instead. */
+    protected function addServiceQueuedHook(string $phase, string $method, string $hookClass, array $options = []): self
+    {
+        trigger_error('addServiceQueuedHook() is deprecated, use addQueuedHookRegistration() instead.', E_USER_DEPRECATED);
+
+        return $this->addQueuedHookRegistration($phase, $method, $hookClass, $options);
+    }
+
+    /** @deprecated Use addDelayedHookRegistration() instead. */
+    protected function addServiceDelayedHook(string $phase, string $method, string $hookClass, int $delay = 30, array $options = []): self
+    {
+        trigger_error('addServiceDelayedHook() is deprecated, use addDelayedHookRegistration() instead.', E_USER_DEPRECATED);
+
+        return $this->addDelayedHookRegistration($phase, $method, $hookClass, $delay, $options);
+    }
+
+    /** @deprecated Use addBatchedHookRegistration() instead. */
+    protected function addServiceBatchedHook(string $phase, string $method, string $hookClass, array $options = []): self
+    {
+        trigger_error('addServiceBatchedHook() is deprecated, use addBatchedHookRegistration() instead.', E_USER_DEPRECATED);
+
+        return $this->addBatchedHookRegistration($phase, $method, $hookClass, $options);
+    }
+
+    /** @deprecated Use addHookRegistration() instead. */
+    protected function addServiceHook(string $phase, string $method, string $hookClass, string $strategy = 'sync', array $options = []): self
+    {
+        trigger_error('addServiceHook() is deprecated, use addHookRegistration() instead.', E_USER_DEPRECATED);
+
+        return $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
+    }
+
+    /** @deprecated Use addHookRegistrations() instead. */
+    protected function addServiceHooks(array $hookDefinitions): self
+    {
+        trigger_error('addServiceHooks() is deprecated, use addHookRegistrations() instead.', E_USER_DEPRECATED);
+
+        return $this->addHookRegistrations($hookDefinitions);
+    }
+
+    /** @deprecated Use removeHooks() instead. */
+    protected function removeServiceHooks(string $method, string $phase): self
+    {
+        trigger_error('removeServiceHooks() is deprecated, use removeHooks() instead.', E_USER_DEPRECATED);
+
+        return $this->removeHooks($method, $phase);
+    }
+
+    /** @deprecated Use removeHook() instead. */
+    protected function removeServiceHook(string $method, string $phase, string $hookClass): self
+    {
+        trigger_error('removeServiceHook() is deprecated, use removeHook() instead.', E_USER_DEPRECATED);
+
+        return $this->removeHook($method, $phase, $hookClass);
+    }
+
+    /** @deprecated Use enableHooks() instead. */
+    protected function enableServiceHooks(bool $enabled = true): self
+    {
+        trigger_error('enableServiceHooks() is deprecated, use enableHooks() instead.', E_USER_DEPRECATED);
+
+        return $this->enableHooks($enabled);
+    }
+
+    /** @deprecated Use debugHooks() instead. */
+    protected function debugServiceHooks(): array
+    {
+        trigger_error('debugServiceHooks() is deprecated, use debugHooks() instead.', E_USER_DEPRECATED);
+
+        return $this->debugHooks();
+    }
+
+    /** @deprecated Use getTargetIdentifier() instead. */
+    protected function getServiceIdentifier(): string
+    {
+        trigger_error('getServiceIdentifier() is deprecated, use getTargetIdentifier() instead.', E_USER_DEPRECATED);
+
+        return $this->getTargetIdentifier();
     }
 }

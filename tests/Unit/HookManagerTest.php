@@ -70,7 +70,7 @@ test('addSyncHook registers a sync hook', function () {
     $manager->addSyncHook('App\\Service', 'create', 'after', ManagerTestHook::class);
 
     $stats = $manager->getStats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
 test('addQueuedHook registers a queued hook', function () {
@@ -78,7 +78,7 @@ test('addQueuedHook registers a queued hook', function () {
     $manager->addQueuedHook('App\\Service', 'create', 'after', ManagerTestHook::class);
 
     $stats = $manager->getStats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
 test('addDelayedHook registers a delayed hook with delay option', function () {
@@ -86,7 +86,7 @@ test('addDelayedHook registers a delayed hook with delay option', function () {
     $manager->addDelayedHook('App\\Service', 'create', 'after', ManagerTestHook::class, 60);
 
     $stats = $manager->getStats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
 test('addBatchedHook registers a batched hook', function () {
@@ -94,7 +94,7 @@ test('addBatchedHook registers a batched hook', function () {
     $manager->addBatchedHook('App\\Service', 'create', 'after', ManagerTestHook::class);
 
     $stats = $manager->getStats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
 test('addHook throws on invalid phase', function () {
@@ -191,7 +191,7 @@ test('createBeforeContext creates correct context', function () {
     expect($ctx->method)->toBe('create')
         ->and($ctx->phase)->toBe('before')
         ->and($ctx->result)->toBeNull()
-        ->and($ctx->service)->toBe($service);
+        ->and($ctx->target)->toBe($service);
 });
 
 test('createAfterContext creates correct context', function () {
@@ -207,12 +207,12 @@ test('createAfterContext creates correct context', function () {
 test('addHooks registers multiple hooks at once', function () {
     $manager = new HookManager(new HookRegistry);
     $manager->addHooks([
-        ['service' => 'App\\Service', 'method' => 'create', 'phase' => 'after', 'hook' => ManagerTestHook::class],
-        ['service' => 'App\\Service', 'method' => 'update', 'phase' => 'after', 'hook' => ManagerTestHook::class],
+        ['target' => 'App\\Service', 'method' => 'create', 'phase' => 'after', 'hook' => ManagerTestHook::class],
+        ['target' => 'App\\Service', 'method' => 'update', 'phase' => 'after', 'hook' => ManagerTestHook::class],
     ]);
 
     $stats = $manager->getStats();
-    expect($stats['total_service_hooks'])->toBe(2);
+    expect($stats['total_target_hooks'])->toBe(2);
 });
 
 test('clearAll removes all registered hooks', function () {

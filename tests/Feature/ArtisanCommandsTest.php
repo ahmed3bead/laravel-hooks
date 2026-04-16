@@ -114,7 +114,7 @@ test('hooks:manage list shows registered hooks', function () {
         ->assertExitCode(0);
 });
 
-test('hooks:manage debug with missing service option returns error', function () {
+test('hooks:manage debug with missing target option returns error', function () {
     $this->artisan('hooks:manage', ['action' => 'debug'])
         ->assertExitCode(0); // Command::SUCCESS is returned but error message shown
 });

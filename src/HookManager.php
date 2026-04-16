@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Hook Manager
  *
- * Main facade for hook management operations. This class provides
- * a clean interface for registering and executing hooks while
- * managing the underlying registry and execution strategies.
+ * Main facade for hook management operations. Provides a clean interface
+ * for registering and executing hooks on any class — controllers, services,
+ * jobs, models, or plain PHP objects.
  */
 class HookManager
 {
@@ -30,33 +30,33 @@ class HookManager
      * Register a synchronous hook
      */
     public function addSyncHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass,
         array $options = []
     ): self {
-        return $this->addHook($serviceClass, $method, $phase, $hookClass, 'sync', $options);
+        return $this->addHook($targetClass, $method, $phase, $hookClass, 'sync', $options);
     }
 
     /**
      * Register a queued hook
      */
     public function addQueuedHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass,
         array $options = []
     ): self {
-        return $this->addHook($serviceClass, $method, $phase, $hookClass, 'queue', $options);
+        return $this->addHook($targetClass, $method, $phase, $hookClass, 'queue', $options);
     }
 
     /**
      * Register a delayed hook
      */
     public function addDelayedHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass,
@@ -65,27 +65,27 @@ class HookManager
     ): self {
         $options['delay'] = $delay;
 
-        return $this->addHook($serviceClass, $method, $phase, $hookClass, 'delay', $options);
+        return $this->addHook($targetClass, $method, $phase, $hookClass, 'delay', $options);
     }
 
     /**
      * Register a batched hook
      */
     public function addBatchedHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass,
         array $options = []
     ): self {
-        return $this->addHook($serviceClass, $method, $phase, $hookClass, 'batch', $options);
+        return $this->addHook($targetClass, $method, $phase, $hookClass, 'batch', $options);
     }
 
     /**
      * Register a hook with custom strategy
      */
     public function addHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass,
@@ -96,7 +96,7 @@ class HookManager
         $this->validateStrategy($strategy);
 
         $this->registry->registerHook(
-            $serviceClass,
+            $targetClass,
             $method,
             $phase,
             $hookClass,
@@ -109,7 +109,7 @@ class HookManager
                 'hook' => $hookClass,
                 'phase' => $phase,
                 'strategy' => $strategy,
-                'service' => $serviceClass,
+                'target' => $targetClass,
                 'method' => $method,
                 'options' => $options,
             ]);
@@ -119,13 +119,16 @@ class HookManager
     }
 
     /**
-     * Register multiple hooks at once
+     * Register multiple hooks at once.
+     *
+     * Each definition must have a 'target' key (class name).
+     * The legacy 'service' key is still accepted for backward compatibility.
      */
     public function addHooks(array $hookDefinitions): self
     {
         foreach ($hookDefinitions as $definition) {
             $this->addHook(
-                $definition['service'],
+                $definition['target'] ?? $definition['service'],
                 $definition['method'],
                 $definition['phase'],
                 $definition['hook'],
@@ -138,7 +141,7 @@ class HookManager
     }
 
     /**
-     * Register a global hook for all services
+     * Register a global hook that runs for every class using HookableTrait
      */
     public function addGlobalHook(
         string $method,
@@ -170,14 +173,13 @@ class HookManager
             return;
         }
 
-        // Apply middleware before execution
         $context = $this->applyMiddleware($context);
 
-        $serviceClass = get_class($context->service);
+        $targetClass = get_class($context->target);
 
         if ($this->debugMode) {
             Log::debug('Executing hooks via manager', [
-                'service' => $serviceClass,
+                'target' => $targetClass,
                 'method' => $context->method,
                 'phase' => $context->phase,
             ]);
@@ -185,14 +187,14 @@ class HookManager
 
         try {
             $this->registry->executeHooks(
-                $serviceClass,
+                $targetClass,
                 $context->method,
                 $context->phase,
                 $context
             );
         } catch (\Exception $e) {
             Log::error('Hook execution failed in manager', [
-                'service' => $serviceClass,
+                'target' => $targetClass,
                 'method' => $context->method,
                 'phase' => $context->phase,
                 'error' => $e->getMessage(),
@@ -209,7 +211,7 @@ class HookManager
         string $method,
         mixed $data,
         array $parameters,
-        object $service,
+        object $target,
         ?object $user = null,
         array $metadata = []
     ): HookContext {
@@ -219,7 +221,7 @@ class HookManager
             data: $data,
             parameters: $parameters,
             result: null,
-            service: $service,
+            target: $target,
             user: $user,
             metadata: $metadata
         );
@@ -233,7 +235,7 @@ class HookManager
         mixed $data,
         array $parameters,
         mixed $result,
-        object $service,
+        object $target,
         ?object $user = null,
         array $metadata = []
     ): HookContext {
@@ -243,7 +245,7 @@ class HookManager
             data: $data,
             parameters: $parameters,
             result: $result,
-            service: $service,
+            target: $target,
             user: $user,
             metadata: $metadata
         );
@@ -290,11 +292,11 @@ class HookManager
     }
 
     /**
-     * Remove hooks for a service method
+     * Remove hooks for a target class method
      */
-    public function removeHooks(string $serviceClass, string $method, string $phase): self
+    public function removeHooks(string $targetClass, string $method, string $phase): self
     {
-        $this->registry->removeHooks($serviceClass, $method, $phase);
+        $this->registry->removeHooks($targetClass, $method, $phase);
 
         return $this;
     }
@@ -303,12 +305,12 @@ class HookManager
      * Remove a specific hook
      */
     public function removeHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass
     ): self {
-        $this->registry->removeHook($serviceClass, $method, $phase, $hookClass);
+        $this->registry->removeHook($targetClass, $method, $phase, $hookClass);
 
         return $this;
     }
@@ -369,11 +371,21 @@ class HookManager
     }
 
     /**
-     * Debug hooks for a specific service
+     * Debug hooks for a specific target class
      */
-    public function debugService(string $serviceClass): array
+    public function debugTarget(string $targetClass): array
     {
-        return $this->registry->debugService($serviceClass);
+        return $this->registry->debugTarget($targetClass);
+    }
+
+    /**
+     * @deprecated Use debugTarget() instead.
+     */
+    public function debugService(string $targetClass): array
+    {
+        trigger_error('debugService() is deprecated, use debugTarget() instead.', E_USER_DEPRECATED);
+
+        return $this->debugTarget($targetClass);
     }
 
     /**
@@ -419,15 +431,15 @@ class HookManager
     }
 
     /**
-     * Bulk register hooks from configuration
+     * Bulk register hooks from configuration array
      */
     public function loadFromConfig(array $config): self
     {
-        foreach ($config as $serviceClass => $serviceDef) {
-            if (isset($serviceDef['hooks'])) {
-                foreach ($serviceDef['hooks'] as $hookDef) {
+        foreach ($config as $targetClass => $targetDef) {
+            if (isset($targetDef['hooks'])) {
+                foreach ($targetDef['hooks'] as $hookDef) {
                     $this->addHook(
-                        $serviceClass,
+                        $targetClass,
                         $hookDef['method'],
                         $hookDef['phase'],
                         $hookDef['hook'],
@@ -437,8 +449,8 @@ class HookManager
                 }
             }
 
-            if (isset($serviceDef['global_hooks'])) {
-                foreach ($serviceDef['global_hooks'] as $hookDef) {
+            if (isset($targetDef['global_hooks'])) {
+                foreach ($targetDef['global_hooks'] as $hookDef) {
                     $this->addGlobalHook(
                         $hookDef['method'],
                         $hookDef['phase'],

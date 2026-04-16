@@ -14,7 +14,8 @@ class HooksManagementCommand extends Command
      */
     protected $signature = 'hooks:manage
                             {action : The action to perform (list, stats, debug, clear, enable, disable, flush)}
-                            {--service= : Service class to debug (for debug action)}
+                            {--target= : Target class to debug (for debug action)}
+                            {--service= : Alias for --target (deprecated)}
                             {--format=table : Output format (table, json, array)}
                             {--export= : Export results to file}
                             {--force : Force action without confirmation}';
@@ -22,7 +23,7 @@ class HooksManagementCommand extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Manage Laravel service hooks';
+    protected $description = 'Manage Laravel hooks';
 
     /**
      * Execute the console command.
@@ -42,7 +43,7 @@ class HooksManagementCommand extends Command
                     $this->showStats($hookManager);
                     break;
                 case 'debug':
-                    $this->debugService($hookManager);
+                    $this->debugTarget($hookManager);
                     break;
                 case 'clear':
                     $this->clearHooks($hookManager);
@@ -87,28 +88,28 @@ class HooksManagementCommand extends Command
 
         $registry = $hookManager->getRegistry();
         $allHooks = $registry->getAllHooks();
-        $serviceHooks = $allHooks['service_hooks'];
+        $targetHooks = $allHooks['target_hooks'];
         $globalHooks = $allHooks['global_hooks'];
 
-        if (empty($serviceHooks) && empty($globalHooks)) {
+        if (empty($targetHooks) && empty($globalHooks)) {
             $this->warn('No hooks registered.');
 
             return;
         }
 
-        // Service-specific hooks
-        if (! empty($serviceHooks)) {
-            $this->info('Service-Specific Hooks:');
+        // Target-specific hooks
+        if (! empty($targetHooks)) {
+            $this->info('Target-Specific Hooks:');
             $this->line('');
 
-            $serviceHooksData = [];
-            foreach ($serviceHooks as $key => $hooks) {
-                [$service, $method, $phase] = explode('::', $key);
-                $serviceName = class_basename($service);
+            $targetHooksData = [];
+            foreach ($targetHooks as $key => $hooks) {
+                [$target, $method, $phase] = explode('::', $key);
+                $targetName = class_basename($target);
 
                 foreach ($hooks as $hook) {
-                    $serviceHooksData[] = [
-                        'Service' => $serviceName,
+                    $targetHooksData[] = [
+                        'Target' => $targetName,
                         'Method' => $method,
                         'Phase' => $phase,
                         'Hook' => class_basename($hook['class']),
@@ -120,8 +121,8 @@ class HooksManagementCommand extends Command
             }
 
             $this->table(
-                ['Service', 'Method', 'Phase', 'Hook', 'Strategy', 'Priority', 'Enabled'],
-                $serviceHooksData
+                ['Target', 'Method', 'Phase', 'Hook', 'Strategy', 'Priority', 'Enabled'],
+                $targetHooksData
             );
         }
 
@@ -133,7 +134,7 @@ class HooksManagementCommand extends Command
 
             $globalHooksData = [];
             foreach ($globalHooks as $key => $hooks) {
-                [$service, $method, $phase] = explode('::', $key);
+                [$target, $method, $phase] = explode('::', $key);
 
                 foreach ($hooks as $hook) {
                     $globalHooksData[] = [
@@ -167,7 +168,7 @@ class HooksManagementCommand extends Command
         $statsData = [
             ['Metric', 'Value'],
             ['Total Hooks', $stats['total_hooks']],
-            ['Service Hooks', $stats['total_service_hooks']],
+            ['Target Hooks', $stats['total_target_hooks']],
             ['Global Hooks', $stats['total_global_hooks']],
             ['System Enabled', $stats['enabled'] ? 'Yes' : 'No'],
             ['Registered Strategies', implode(', ', $stats['registered_strategies'])],
@@ -191,32 +192,32 @@ class HooksManagementCommand extends Command
     }
 
     /**
-     * Debug hooks for a specific service
+     * Debug hooks for a specific target class
      */
-    private function debugService(HookManager $hookManager): void
+    private function debugTarget(HookManager $hookManager): void
     {
-        $service = $this->option('service');
+        $target = $this->option('target') ?? $this->option('service');
 
-        if (! $service) {
-            $this->error('Please specify a service class with --service option');
-            $this->line('Example: php artisan hooks:manage debug --service="App\\Services\\UserService"');
-
-            return;
-        }
-
-        if (! class_exists($service)) {
-            $this->error("Service class {$service} does not exist");
+        if (! $target) {
+            $this->error('Please specify a target class with --target option');
+            $this->line('Example: php artisan hooks:manage debug --target="App\\Services\\UserService"');
 
             return;
         }
 
-        $hooks = $hookManager->debugService($service);
+        if (! class_exists($target)) {
+            $this->error("Target class {$target} does not exist");
 
-        $this->info('Debug Hooks for Service: '.class_basename($service));
+            return;
+        }
+
+        $hooks = $hookManager->debugTarget($target);
+
+        $this->info('Debug Hooks for Target: '.class_basename($target));
         $this->line('');
 
         if (empty($hooks)) {
-            $this->warn('No hooks found for this service.');
+            $this->warn('No hooks found for this target.');
 
             return;
         }
@@ -355,7 +356,7 @@ class HooksManagementCommand extends Command
         $allHooks = $registry->getAllHooks();
         $strategies = [];
 
-        foreach ($allHooks['service_hooks'] as $hooks) {
+        foreach ($allHooks['target_hooks'] as $hooks) {
             foreach ($hooks as $hook) {
                 $strategies[$hook['strategy']] = ($strategies[$hook['strategy']] ?? 0) + 1;
             }
@@ -386,7 +387,7 @@ class HooksManagementCommand extends Command
         $allHooks = $registry->getAllHooks();
         $phases = [];
 
-        foreach ($allHooks['service_hooks'] as $key => $hooks) {
+        foreach ($allHooks['target_hooks'] as $key => $hooks) {
             $phase = explode('::', $key)[2];
             $phases[$phase] = ($phases[$phase] ?? 0) + count($hooks);
         }
@@ -415,7 +416,7 @@ class HooksManagementCommand extends Command
         $this->info('Available Actions:');
         $this->line('  <fg=green>list</fg=green>     List all registered hooks');
         $this->line('  <fg=green>stats</fg=green>    Show hook system statistics');
-        $this->line('  <fg=green>debug</fg=green>    Debug hooks for a specific service (requires --service)');
+        $this->line('  <fg=green>debug</fg=green>    Debug hooks for a specific target class (requires --target)');
         $this->line('  <fg=green>clear</fg=green>    Clear all registered hooks');
         $this->line('  <fg=green>enable</fg=green>   Enable the hook system');
         $this->line('  <fg=green>disable</fg=green>  Disable the hook system');
@@ -424,7 +425,7 @@ class HooksManagementCommand extends Command
         $this->line('  <fg=green>export</fg=green>   Export hooks configuration');
         $this->line('');
         $this->info('Options:');
-        $this->line('  <fg=yellow>--service</fg=yellow>  Service class to debug (for debug action)');
+        $this->line('  <fg=yellow>--target</fg=yellow>   Target class to debug (for debug action)');
         $this->line('  <fg=yellow>--format</fg=yellow>   Output format (table, json, array)');
         $this->line('  <fg=yellow>--export</fg=yellow>   Export results to file');
         $this->line('  <fg=yellow>--force</fg=yellow>    Force action without confirmation');
@@ -432,7 +433,7 @@ class HooksManagementCommand extends Command
         $this->info('Examples:');
         $this->line('  php artisan hooks:manage list');
         $this->line('  php artisan hooks:manage stats');
-        $this->line('  php artisan hooks:manage debug --service="App\\Services\\UserService"');
+        $this->line('  php artisan hooks:manage debug --target="App\\Services\\UserService"');
         $this->line('  php artisan hooks:manage clear --force');
         $this->line('  php artisan hooks:manage export --export=my_hooks.json');
     }

@@ -91,37 +91,37 @@ class TraitTestService
     // Public proxies so tests can register hooks from outside the class
     public function registerSync(string $phase, string $method, string $hookClass): void
     {
-        $this->addServiceSyncHook($phase, $method, $hookClass);
+        $this->addSyncHookRegistration($phase, $method, $hookClass);
     }
 
     public function registerQueued(string $phase, string $method, string $hookClass): void
     {
-        $this->addServiceQueuedHook($phase, $method, $hookClass);
+        $this->addQueuedHookRegistration($phase, $method, $hookClass);
     }
 
     public function registerDelayed(string $phase, string $method, string $hookClass, int $delay = 30): void
     {
-        $this->addServiceDelayedHook($phase, $method, $hookClass, $delay);
+        $this->addDelayedHookRegistration($phase, $method, $hookClass, $delay);
     }
 
     public function registerBatched(string $phase, string $method, string $hookClass): void
     {
-        $this->addServiceBatchedHook($phase, $method, $hookClass);
+        $this->addBatchedHookRegistration($phase, $method, $hookClass);
     }
 
     public function removeHooksFor(string $method, string $phase): void
     {
-        $this->removeServiceHooks($method, $phase);
+        $this->removeHooks($method, $phase);
     }
 
     public function removeHookFor(string $method, string $phase, string $hookClass): void
     {
-        $this->removeServiceHook($method, $phase, $hookClass);
+        $this->removeHook($method, $phase, $hookClass);
     }
 
     public function toggleHooks(bool $enabled): void
     {
-        $this->enableServiceHooks($enabled);
+        $this->enableHooks($enabled);
     }
 
     public function stats(): array
@@ -171,7 +171,7 @@ test('syncHook registers a sync hook for a given phase', function () {
     $service->syncHook('error', 'create', TraitTestHook::class);
 
     $stats = $service->stats();
-    expect($stats['total_service_hooks'])->toBe(3);
+    expect($stats['total_target_hooks'])->toBe(3);
 });
 
 test('syncHook fires before and after like beforeHook/afterHook', function () {
@@ -187,31 +187,31 @@ test('syncHook fires before and after like beforeHook/afterHook', function () {
         ->and(TraitTestHook::$calls[1]['phase'])->toBe('after');
 });
 
-test('addServiceQueuedHook registers a queued hook', function () {
+test('addQueuedHookRegistration registers a queued hook', function () {
     $service = new TraitTestService;
     $service->registerQueued('after', 'create', TraitTestHook::class);
 
     $stats = $service->stats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
-test('addServiceDelayedHook registers a delayed hook', function () {
+test('addDelayedHookRegistration registers a delayed hook', function () {
     $service = new TraitTestService;
     $service->registerDelayed('after', 'create', TraitTestHook::class, 60);
 
     $stats = $service->stats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
-test('addServiceBatchedHook registers a batched hook', function () {
+test('addBatchedHookRegistration registers a batched hook', function () {
     $service = new TraitTestService;
     $service->registerBatched('after', 'create', TraitTestHook::class);
 
     $stats = $service->stats();
-    expect($stats['total_service_hooks'])->toBe(1);
+    expect($stats['total_target_hooks'])->toBe(1);
 });
 
-test('removeServiceHooks clears hooks for a method', function () {
+test('removeHooks clears hooks for a method', function () {
     $service = new TraitTestService;
     $service->registerSync('after', 'create', TraitTestHook::class);
     $service->removeHooksFor('create', 'after');
@@ -220,7 +220,7 @@ test('removeServiceHooks clears hooks for a method', function () {
     expect($stats['total_hooks'])->toBe(0);
 });
 
-test('removeServiceHook removes a specific hook', function () {
+test('removeHook removes a specific hook', function () {
     $service = new TraitTestService;
     $service->registerSync('after', 'create', TraitTestHook::class);
     $service->removeHookFor('create', 'after', TraitTestHook::class);
@@ -229,7 +229,7 @@ test('removeServiceHook removes a specific hook', function () {
     expect($stats['total_hooks'])->toBe(0);
 });
 
-test('enableServiceHooks and disableHooks toggle execution', function () {
+test('enableHooks and disableHooks toggle execution', function () {
     $service = new TraitTestService;
     $service->registerSync('after', 'create', TraitTestHook::class);
     $service->toggleHooks(false);
@@ -253,5 +253,48 @@ test('addHookForMethods registers hook for multiple methods', function () {
     $service->registerForMethods('after', ['create', 'update'], TraitTestHook::class);
 
     $stats = $service->stats();
-    expect($stats['total_service_hooks'])->toBe(2);
+    expect($stats['total_target_hooks'])->toBe(2);
+});
+
+test('syncHookWithLogic fires an inline callback as a before hook', function () {
+    $service = new TraitTestService;
+    $called = [];
+
+    $service->syncHookWithLogic('before', 'create', function ($ctx) use (&$called) {
+        $called[] = $ctx->phase;
+    });
+
+    $service->create();
+
+    expect($called)->toBe(['before']);
+});
+
+test('syncHookWithLogic fires an inline callback as an after hook', function () {
+    $service = new TraitTestService;
+    $called = [];
+
+    $service->syncHookWithLogic('after', 'create', function ($ctx) use (&$called) {
+        $called[] = $ctx->method;
+    });
+
+    $result = $service->create();
+
+    expect($result)->toBe('created')
+        ->and($called)->toBe(['create']);
+});
+
+test('hookWithLogic fires inline callbacks for before and after', function () {
+    $service = new TraitTestService;
+    $log = [];
+
+    $service->hookWithLogic('before', 'update', function ($ctx) use (&$log) {
+        $log[] = 'before:'.$ctx->phase;
+    });
+    $service->hookWithLogic('after', 'update', function ($ctx) use (&$log) {
+        $log[] = 'after:'.$ctx->phase;
+    });
+
+    $service->update();
+
+    expect($log)->toBe(['before:before', 'after:after']);
 });

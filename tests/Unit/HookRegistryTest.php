@@ -124,7 +124,7 @@ test('clearAll removes all hooks', function () {
     $registry->clearAll();
 
     $all = $registry->getAllHooks();
-    expect($all['service_hooks'])->toBeEmpty()
+    expect($all['target_hooks'])->toBeEmpty()
         ->and($all['global_hooks'])->toBeEmpty();
 });
 
@@ -137,7 +137,7 @@ test('getStats returns correct counts', function () {
 
     $stats = $registry->getStats();
 
-    expect($stats['total_service_hooks'])->toBe(1)
+    expect($stats['total_target_hooks'])->toBe(1)
         ->and($stats['total_global_hooks'])->toBe(1)
         ->and($stats['total_hooks'])->toBe(2)
         ->and($stats['enabled'])->toBeTrue();

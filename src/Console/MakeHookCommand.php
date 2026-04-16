@@ -20,7 +20,7 @@ class MakeHookCommand extends Command
                             {--priority=100}
                             {--force}';
 
-    protected $description = 'Create a new service hook job class';
+    protected $description = 'Create a new hook class';
 
     protected Filesystem $files;
 
@@ -253,8 +253,8 @@ class MakeHookCommand extends Command
     {
         return match ($mode) {
             'queue' => "protected bool \$async = true;\n    protected string \$queueName = 'default';",
-            'delay' => "protected bool \$async = true;\n    protected string \$queueName = 'default';\n    // Note: Use addServiceDelayedHook() with delay parameter",
-            'batch' => "protected bool \$async = true;\n    protected string \$queueName = 'batch';\n    // Note: Use addServiceBatchedHook() for batching",
+            'delay' => "protected bool \$async = true;\n    protected string \$queueName = 'default';\n    // Note: Use addDelayedHookRegistration() with delay parameter",
+            'batch' => "protected bool \$async = true;\n    protected string \$queueName = 'batch';\n    // Note: Use addBatchedHookRegistration() for batching",
             default => '// Synchronous execution'
         };
     }
@@ -268,15 +268,14 @@ class MakeHookCommand extends Command
         $methodStr = in_array('*', $methods) ? 'create' : (is_array($methods) ? $methods[0] : $methods);
 
         $methodName = match ($dispatchMode) {
-            'sync' => 'addServiceSyncHook',
-            'queue' => 'addServiceQueuedHook',
-            'delay' => 'addServiceDelayedHook',
-            'batch' => 'addServiceBatchedHook',
+            'sync' => 'addSyncHookRegistration',
+            'queue' => 'addQueuedHookRegistration',
+            'delay' => 'addDelayedHookRegistration',
+            'batch' => 'addBatchedHookRegistration',
         };
 
-        $example = "// In your Service's registerServiceHooks() method:\n";
-        $example .= "protected function registerServiceHooks(): void\n{\n";
-        $example .= "    parent::registerServiceHooks();\n\n";
+        $example = "// In your class's registerHooks() method:\n";
+        $example .= "protected function registerHooks(): void\n{\n";
         $example .= "    \$this->{$methodName}('{$phase}', '{$methodStr}', {$className}::class";
 
         if ($dispatchMode === 'delay') {
@@ -294,7 +293,7 @@ class MakeHookCommand extends Command
         $this->line('<comment>Next Steps:</comment>');
         $this->line('');
         $this->line('1. Customize the hook logic in the handle() method');
-        $this->line("2. Register the hook in your service's registerServiceHooks() method");
+        $this->line("2. Register the hook in your class's registerHooks() method");
         $this->line('3. Test the hook with: <info>php artisan hooks:manage test</info>');
         $this->line('4. View all hooks with: <info>php artisan hooks:manage list</info>');
         $this->line('');
@@ -314,7 +313,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * {{ class }}
  *
- * Generated hook for service operations
+ * Generated hook
  */
 class {{ class }} extends BaseHookJob
 {
@@ -332,10 +331,10 @@ class {{ class }} extends BaseHookJob
      */
     public function handle(HookContext $context): void
     {
-        // Access the service method context
+        // Access the hook execution context
         $method = $context->method;
         $phase = $context->phase;
-        $service = $context->service;
+        $target = $context->target;
         $user = $context->user;
 
         // Access model data (works with wrapped responses)
@@ -346,7 +345,7 @@ class {{ class }} extends BaseHookJob
         Log::info("{{ class }} executed", [
             "method" => $method,
             "phase" => $phase,
-            "service" => get_class($service),
+            "target" => get_class($target),
             "user_id" => $context->getUserId(),
             "model_id" => $model?->getKey(),
             "status_code" => $context->getStatusCode(),
@@ -388,7 +387,7 @@ class {{ class }} extends BaseHookJob
         Log::error("{{ class }} failed", [
             "hook" => static::class,
             "method" => $context->method,
-            "service" => get_class($context->service),
+            "target" => get_class($context->target),
             "error" => $e->getMessage(),
             "context" => $context->toArray()
         ]);
@@ -410,7 +409,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * {{ class }}
  *
- * Audit trail hook for tracking service operations
+ * Audit trail hook for tracking operations
  */
 class {{ class }} extends BaseHookJob
 {
@@ -433,7 +432,7 @@ class {{ class }} extends BaseHookJob
             $auditData = [
                 "user_id" => $context->getUserId(),
                 "action" => $context->method,
-                "service" => get_class($context->service),
+                "target" => get_class($context->target),
                 "model_type" => $model ? get_class($model) : null,
                 "model_id" => $model?->getKey(),
                 "ip_address" => request()->ip(),
@@ -462,7 +461,7 @@ class {{ class }} extends BaseHookJob
             Log::error("Failed to record audit trail", [
                 "error" => $e->getMessage(),
                 "method" => $context->method,
-                "service" => get_class($context->service)
+                "target" => get_class($context->target)
             ]);
         }
     }{{ hasCondition }}
@@ -491,7 +490,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * {{ class }}
  *
- * Analytics tracking hook for service operations
+ * Analytics tracking hook for operations
  */
 class {{ class }} extends BaseHookJob
 {
@@ -513,8 +512,8 @@ class {{ class }} extends BaseHookJob
             $model = $context->getModelFromResult();
 
             $analyticsData = [
-                "event_type" => "service_method_executed",
-                "service" => get_class($context->service),
+                "event_type" => "hook_method_executed",
+                "target" => get_class($context->target),
                 "method" => $context->method,
                 "phase" => $context->phase,
                 "user_id" => $context->getUserId(),
@@ -539,7 +538,7 @@ class {{ class }} extends BaseHookJob
 
             Log::info("Analytics event tracked", [
                 "event_type" => $analyticsData["event_type"],
-                "service" => $analyticsData["service"],
+                "target" => $analyticsData["target"],
                 "method" => $analyticsData["method"],
                 "user_id" => $analyticsData["user_id"]
             ]);
@@ -548,7 +547,7 @@ class {{ class }} extends BaseHookJob
             Log::error("Failed to track analytics", [
                 "error" => $e->getMessage(),
                 "method" => $context->method,
-                "service" => get_class($context->service)
+                "target" => get_class($context->target)
             ]);
         }
     }
@@ -595,7 +594,7 @@ use Illuminate\Support\Facades\Notification;
 /**
  * {{ class }}
  *
- * Notification hook for service operations
+ * Notification hook for operations
  */
 class {{ class }} extends BaseHookJob
 {
@@ -619,7 +618,7 @@ class {{ class }} extends BaseHookJob
         if (!$user) {
             Log::warning("No user found for notification", [
                 "method" => $context->method,
-                "service" => get_class($context->service)
+                "target" => get_class($context->target)
             ]);
             return;
         }
@@ -629,7 +628,7 @@ class {{ class }} extends BaseHookJob
                 "action" => $context->method,
                 "model_type" => $model ? get_class($model) : null,
                 "model_id" => $model?->getKey(),
-                "service" => get_class($context->service),
+                "target" => get_class($context->target),
                 "success" => $context->isSuccessful(),
                 "timestamp" => now()
             ];

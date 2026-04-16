@@ -6,10 +6,11 @@ use Ahmed3bead\LaravelHooks\Contracts\WrappedResponseInterface;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Enhanced Hook Context with Data Extraction
+ * Hook Context
  *
- * This enhanced version can extract actual data from wrapped responses
- * and provides convenient access to both raw and wrapped data.
+ * Carries all information about the current hook execution — the method name,
+ * phase, input data, result, the object the method was called on ($target),
+ * and the authenticated user at the time of the call.
  */
 class HookContext
 {
@@ -19,11 +20,27 @@ class HookContext
         public mixed $data,
         public array $parameters,
         public mixed $result,
-        public object $service,
+        public object $target,
         public ?Model $model = null,
         public ?object $user = null,
         public array $metadata = []
     ) {}
+
+    /**
+     * Backward-compat: allow $context->service as an alias for $context->target.
+     *
+     * @deprecated Use $context->target instead.
+     */
+    public function __get(string $name): mixed
+    {
+        if ($name === 'service') {
+            trigger_error('HookContext::$service is deprecated, use $target instead.', E_USER_DEPRECATED);
+
+            return $this->target;
+        }
+
+        return null;
+    }
 
     /**
      * Get the raw model data from the result, extracting from wrapped responses
@@ -34,17 +51,14 @@ class HookContext
             return null;
         }
 
-        // If result is already a model, return it
         if ($this->result instanceof Model) {
             return $this->result;
         }
 
-        // If result is a WrappedResponseInterface, extract the model from it
         if ($this->result instanceof WrappedResponseInterface) {
             return $this->extractModelFromResponse($this->result);
         }
 
-        // If result is a collection, get the first model
         if (is_iterable($this->result)) {
             foreach ($this->result as $item) {
                 if ($item instanceof Model) {
@@ -65,7 +79,6 @@ class HookContext
             return null;
         }
 
-        // If result is a WrappedResponseInterface, extract the data
         if ($this->result instanceof WrappedResponseInterface) {
             return $this->result->getData();
         }
@@ -82,11 +95,9 @@ class HookContext
             return null;
         }
 
-        // If result is a WrappedResponseInterface, extract the resource
         if ($this->result instanceof WrappedResponseInterface) {
             $data = $this->result->getData();
 
-            // If the data is a Laravel Resource, return it
             if (is_object($data) && method_exists($data, 'resource')) {
                 return $data;
             }
@@ -120,7 +131,6 @@ class HookContext
     {
         $data = $response->getData();
 
-        // If data is a Laravel Resource, get the underlying model
         if (is_object($data) && property_exists($data, 'resource')) {
             $resource = $data->resource;
             if ($resource instanceof Model) {
@@ -128,18 +138,15 @@ class HookContext
             }
         }
 
-        // If data is directly a model
         if ($data instanceof Model) {
             return $data;
         }
 
-        // If data is a collection, get the first model
         if (is_iterable($data)) {
             foreach ($data as $item) {
                 if ($item instanceof Model) {
                     return $item;
                 }
-                // Check if item is a resource containing a model
                 if (is_object($item) && property_exists($item, 'resource') && $item->resource instanceof Model) {
                     return $item->resource;
                 }
@@ -147,14 +154,6 @@ class HookContext
         }
 
         return null;
-    }
-
-    /**
-     * Extract data from WrappedResponseInterface
-     */
-    private function extractDataFromResponse(WrappedResponseInterface $response): mixed
-    {
-        return $response->getData();
     }
 
     /**
@@ -196,7 +195,7 @@ class HookContext
             'has_wrapped_response' => $this->hasWrappedResponse(),
             'status_code' => $this->getStatusCode(),
             'message' => $this->getMessage(),
-            'service' => get_class($this->service),
+            'target' => get_class($this->target),
             'model' => $this->model ? get_class($this->model) : null,
             'extracted_model' => $this->getModelFromResult() ? get_class($this->getModelFromResult()) : null,
             'user' => $this->user ? get_class($this->user) : null,
@@ -229,7 +228,7 @@ class HookContext
     }
 
     /**
-     * Get request_data value
+     * Get request data
      */
     public function getRequestData(): array
     {
@@ -257,9 +256,7 @@ class HookContext
      */
     public function getModelId(): mixed
     {
-        $model = $this->getModelFromResult();
-
-        return $model?->getKey();
+        return $this->getModelFromResult()?->getKey();
     }
 
     /**

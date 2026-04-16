@@ -63,7 +63,7 @@ test('constructor sets all properties', function () {
         data: ['foo' => 'bar'],
         parameters: ['id' => 1],
         result: null,
-        service: $service,
+        target: $service,
     );
 
     expect($ctx->method)->toBe('create')
@@ -71,7 +71,7 @@ test('constructor sets all properties', function () {
         ->and($ctx->data)->toBe(['foo' => 'bar'])
         ->and($ctx->parameters)->toBe(['id' => 1])
         ->and($ctx->result)->toBeNull()
-        ->and($ctx->service)->toBe($service);
+        ->and($ctx->target)->toBe($service);
 });
 
 test('isBefore returns true when phase is before', function () {
@@ -183,7 +183,7 @@ test('toArray returns array with expected keys', function () {
     expect($array)->toHaveKeys([
         'method', 'phase', 'data', 'request_data', 'parameters',
         'result_type', 'has_wrapped_response', 'status_code', 'message',
-        'service', 'model', 'extracted_model', 'user', 'metadata',
+        'target', 'model', 'extracted_model', 'user', 'metadata',
     ]);
 });
 

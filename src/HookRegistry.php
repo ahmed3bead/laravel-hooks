@@ -45,17 +45,17 @@ class HookRegistry
     }
 
     /**
-     * Register a hook for a specific service method and phase
+     * Register a hook for a specific target class method and phase
      */
     public function registerHook(
-        string $serviceClass,
+        string $targetClass,
         string $method,
         string $phase,
         string $hookClass,
         string $strategy = 'sync',
         array $options = []
     ): self {
-        $key = $this->makeKey($serviceClass, $method, $phase);
+        $key = $this->makeKey($targetClass, $method, $phase);
 
         if (! isset($this->hooks[$key])) {
             $this->hooks[$key] = [];
@@ -75,7 +75,7 @@ class HookRegistry
         $this->sortHooksByPriority($key);
 
         Log::debug('Hook registered', [
-            'service' => $serviceClass,
+            'target' => $targetClass,
             'method' => $method,
             'phase' => $phase,
             'hook' => $hookClass,
@@ -116,17 +116,17 @@ class HookRegistry
     }
 
     /**
-     * Get hooks for a specific service method and phase
+     * Get hooks for a specific target class method and phase
      */
-    public function getHooks(string $serviceClass, string $method, string $phase): array
+    public function getHooks(string $targetClass, string $method, string $phase): array
     {
         if (! $this->enabled) {
             return [];
         }
 
-        $specificKey = $this->makeKey($serviceClass, $method, $phase);
+        $specificKey = $this->makeKey($targetClass, $method, $phase);
         $globalKey = $this->makeKey('*', $method, $phase);
-        $allMethodsKey = $this->makeKey($serviceClass, '*', $phase);
+        $allMethodsKey = $this->makeKey($targetClass, '*', $phase);
         $allGlobalKey = $this->makeKey('*', '*', $phase);
 
         $hooks = array_merge(
@@ -147,16 +147,16 @@ class HookRegistry
     /**
      * Execute hooks for a specific context
      */
-    public function executeHooks(string $serviceClass, string $method, string $phase, HookContext $context): void
+    public function executeHooks(string $targetClass, string $method, string $phase, HookContext $context): void
     {
-        $hooks = $this->getHooks($serviceClass, $method, $phase);
+        $hooks = $this->getHooks($targetClass, $method, $phase);
 
         if (empty($hooks)) {
             return;
         }
 
         Log::debug('Executing hooks', [
-            'service' => $serviceClass,
+            'target' => $targetClass,
             'method' => $method,
             'phase' => $phase,
             'hook_count' => count($hooks),
@@ -205,7 +205,7 @@ class HookRegistry
      */
     private function createHookInstance(string $hookClass, array $options): HookJobInterface
     {
-        if (! class_exists($hookClass)) {
+        if (! class_exists($hookClass) && ! app()->bound($hookClass)) {
             throw new \InvalidArgumentException("Hook class {$hookClass} does not exist");
         }
 
@@ -260,11 +260,11 @@ class HookRegistry
     }
 
     /**
-     * Remove hooks for a specific service method and phase
+     * Remove hooks for a specific target class method and phase
      */
-    public function removeHooks(string $serviceClass, string $method, string $phase): self
+    public function removeHooks(string $targetClass, string $method, string $phase): self
     {
-        $key = $this->makeKey($serviceClass, $method, $phase);
+        $key = $this->makeKey($targetClass, $method, $phase);
         unset($this->hooks[$key]);
 
         return $this;
@@ -273,9 +273,9 @@ class HookRegistry
     /**
      * Remove a specific hook
      */
-    public function removeHook(string $serviceClass, string $method, string $phase, string $hookClass): self
+    public function removeHook(string $targetClass, string $method, string $phase, string $hookClass): self
     {
-        $key = $this->makeKey($serviceClass, $method, $phase);
+        $key = $this->makeKey($targetClass, $method, $phase);
 
         if (isset($this->hooks[$key])) {
             $this->hooks[$key] = array_filter(
@@ -322,7 +322,7 @@ class HookRegistry
     public function getAllHooks(): array
     {
         return [
-            'service_hooks' => $this->hooks,
+            'target_hooks' => $this->hooks,
             'global_hooks' => $this->globalHooks,
         ];
     }
@@ -332,16 +332,16 @@ class HookRegistry
      */
     public function getStats(): array
     {
-        $totalServiceHooks = array_sum(array_map('count', $this->hooks));
+        $totalTargetHooks = array_sum(array_map('count', $this->hooks));
         $totalGlobalHooks = array_sum(array_map('count', $this->globalHooks));
 
         return [
             'enabled' => $this->enabled,
-            'total_service_hooks' => $totalServiceHooks,
+            'total_target_hooks' => $totalTargetHooks,
             'total_global_hooks' => $totalGlobalHooks,
-            'total_hooks' => $totalServiceHooks + $totalGlobalHooks,
+            'total_hooks' => $totalTargetHooks + $totalGlobalHooks,
             'registered_strategies' => array_keys($this->strategies),
-            'service_hook_keys' => array_keys($this->hooks),
+            'target_hook_keys' => array_keys($this->hooks),
             'global_hook_keys' => array_keys($this->globalHooks),
         ];
     }
@@ -349,9 +349,9 @@ class HookRegistry
     /**
      * Create a unique key for hook storage
      */
-    private function makeKey(string $serviceClass, string $method, string $phase): string
+    private function makeKey(string $targetClass, string $method, string $phase): string
     {
-        return "{$serviceClass}::{$method}::{$phase}";
+        return "{$targetClass}::{$method}::{$phase}";
     }
 
     /**
@@ -375,23 +375,32 @@ class HookRegistry
     }
 
     /**
-     * Debug method to list all hooks for a service
+     * Debug method to list all hooks for a target class
      */
-    public function debugService(string $serviceClass): array
+    public function debugTarget(string $targetClass): array
     {
         $debug = [];
 
         foreach ($this->hooks as $key => $hooks) {
-            if (str_starts_with($key, $serviceClass)) {
+            if (str_starts_with($key, $targetClass)) {
                 $debug[$key] = $hooks;
             }
         }
 
-        // Add global hooks
         foreach ($this->globalHooks as $key => $hooks) {
             $debug["global::{$key}"] = $hooks;
         }
 
         return $debug;
+    }
+
+    /**
+     * @deprecated Use debugTarget() instead.
+     */
+    public function debugService(string $targetClass): array
+    {
+        trigger_error('debugService() is deprecated, use debugTarget() instead.', E_USER_DEPRECATED);
+
+        return $this->debugTarget($targetClass);
     }
 }

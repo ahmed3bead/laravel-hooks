@@ -38,7 +38,7 @@ laravel-hooks/
 │   ├── HookContext.php             # Value object passed to every hook
 │   ├── HookManager.php             # Public facade; use this to register/execute hooks
 │   ├── HookRegistry.php            # Internal hook storage + strategy dispatch
-│   ├── ServiceHookTrait.php        # Adds hook support to any service class
+│   ├── HookableTrait.php        # Adds hook support to any service class
 │   └── LaravelHooksServiceProvider.php
 ├── tests/
 │   ├── Pest.php
@@ -49,7 +49,7 @@ laravel-hooks/
 │   │   ├── HookManagerTest.php
 │   │   ├── BaseHookJobTest.php
 │   │   ├── StrategiesTest.php
-│   │   └── ServiceHookTraitTest.php
+│   │   └── HookableTraitTest.php
 │   └── Feature/
 │       ├── ServiceProviderTest.php
 │       └── ArtisanCommandsTest.php

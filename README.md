@@ -32,11 +32,11 @@ php artisan vendor:publish --tag=laravel-hooks-config
 ### Step 1 — Add the trait to any class
 
 ```php
-use Ahmed3bead\LaravelHooks\ServiceHookTrait;
+use Ahmed3bead\LaravelHooks\HookableTrait;
 
 class OrderService
 {
-    use ServiceHookTrait;
+    use HookableTrait;
 
     public function create(array $data): Order
     {
@@ -82,7 +82,7 @@ class OrderCreatedHook extends BaseHookJob
 ```php
 class OrderService
 {
-    use ServiceHookTrait;
+    use HookableTrait;
 
     protected function registerHooks(): void
     {
@@ -116,14 +116,14 @@ $orderService->afterHook('create', OrderCreatedHook::class);
 
 ## The Trait — Full API
 
-Add `ServiceHookTrait` to any class (not just services):
+Add `HookableTrait` to any class (not just services):
 
 ```php
-use Ahmed3bead\LaravelHooks\ServiceHookTrait;
+use Ahmed3bead\LaravelHooks\HookableTrait;
 
-class MyController  { use ServiceHookTrait; }
-class MyJob         { use ServiceHookTrait; }
-class MyProcessor   { use ServiceHookTrait; }
+class MyController  { use HookableTrait; }
+class MyJob         { use HookableTrait; }
+class MyProcessor   { use HookableTrait; }
 ```
 
 ### Register hooks (public methods)
@@ -287,7 +287,7 @@ $hooks->addHook(OrderService::class, 'create', 'after', LateHook::class,  'sync'
 
 ## Global Hooks
 
-Run for every class that uses `ServiceHookTrait`, for a given method name:
+Run for every class that uses `HookableTrait`, for a given method name:
 
 ```php
 $hooks->addGlobalHook('create', 'after', GlobalAuditHook::class);

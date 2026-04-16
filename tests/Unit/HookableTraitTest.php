@@ -1,7 +1,7 @@
 <?php
 
 use Ahmed3bead\LaravelHooks\HookContext;
-use Ahmed3bead\LaravelHooks\ServiceHookTrait;
+use Ahmed3bead\LaravelHooks\HookableTrait;
 use Ahmed3bead\LaravelHooks\HookManager;
 use Ahmed3bead\LaravelHooks\HookRegistry;
 use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
@@ -30,7 +30,7 @@ class TraitTestHook implements HookJobInterface
 // Service class using the trait — exposes protected methods as public for testing
 class TraitTestService
 {
-    use ServiceHookTrait;
+    use HookableTrait;
 
     public function create(): string
     {

@@ -17,7 +17,6 @@ function makeModel(array $attrs = []): Model
 {
     $model = new class extends Model {
         protected $guarded = [];
-        public bool $wasRecentlyCreated = false;
     };
     foreach ($attrs as $key => $value) {
         $model->$key = $value;

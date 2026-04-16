@@ -27,7 +27,7 @@ class TraitTestHook implements HookJobInterface
     public function execute(HookContext $context): void { $this->handle($context); }
 }
 
-// Service class using the trait
+// Service class using the trait — exposes protected methods as public for testing
 class TraitTestService
 {
     use ServiceHookTrait;
@@ -52,6 +52,52 @@ class TraitTestService
             throw new \RuntimeException('operation failed');
         });
     }
+
+    // Public proxies so tests can register hooks from outside the class
+    public function registerSync(string $phase, string $method, string $hookClass): void
+    {
+        $this->addServiceSyncHook($phase, $method, $hookClass);
+    }
+
+    public function registerQueued(string $phase, string $method, string $hookClass): void
+    {
+        $this->addServiceQueuedHook($phase, $method, $hookClass);
+    }
+
+    public function registerDelayed(string $phase, string $method, string $hookClass, int $delay = 30): void
+    {
+        $this->addServiceDelayedHook($phase, $method, $hookClass, $delay);
+    }
+
+    public function registerBatched(string $phase, string $method, string $hookClass): void
+    {
+        $this->addServiceBatchedHook($phase, $method, $hookClass);
+    }
+
+    public function removeHooksFor(string $method, string $phase): void
+    {
+        $this->removeServiceHooks($method, $phase);
+    }
+
+    public function removeHookFor(string $method, string $phase, string $hookClass): void
+    {
+        $this->removeServiceHook($method, $phase, $hookClass);
+    }
+
+    public function toggleHooks(bool $enabled): void
+    {
+        $this->enableServiceHooks($enabled);
+    }
+
+    public function stats(): array
+    {
+        return $this->getHookStats();
+    }
+
+    public function registerForMethods(string $phase, array $methods, string $hookClass): void
+    {
+        $this->addHookForMethods($phase, $methods, $hookClass);
+    }
 }
 
 beforeEach(function () {
@@ -62,8 +108,8 @@ beforeEach(function () {
 
 test('executeWithHooks fires before and after hooks', function () {
     $service = new TraitTestService();
-    $service->addServiceSyncHook('before', 'create', TraitTestHook::class);
-    $service->addServiceSyncHook('after', 'create', TraitTestHook::class);
+    $service->registerSync('before', 'create', TraitTestHook::class);
+    $service->registerSync('after', 'create', TraitTestHook::class);
 
     $result = $service->create();
 
@@ -75,7 +121,7 @@ test('executeWithHooks fires before and after hooks', function () {
 
 test('executeWithHooks fires error hooks and rethrows', function () {
     $service = new TraitTestService();
-    $service->addServiceSyncHook('error', 'fail', TraitTestHook::class);
+    $service->registerSync('error', 'fail', TraitTestHook::class);
 
     expect(fn () => $service->fail())->toThrow(\RuntimeException::class, 'operation failed');
 
@@ -85,50 +131,50 @@ test('executeWithHooks fires error hooks and rethrows', function () {
 
 test('addServiceQueuedHook registers a queued hook', function () {
     $service = new TraitTestService();
-    $service->addServiceQueuedHook('after', 'create', TraitTestHook::class);
+    $service->registerQueued('after', 'create', TraitTestHook::class);
 
-    $stats = $service->getHookStats();
+    $stats = $service->stats();
     expect($stats['total_service_hooks'])->toBe(1);
 });
 
 test('addServiceDelayedHook registers a delayed hook', function () {
     $service = new TraitTestService();
-    $service->addServiceDelayedHook('after', 'create', TraitTestHook::class, 60);
+    $service->registerDelayed('after', 'create', TraitTestHook::class, 60);
 
-    $stats = $service->getHookStats();
+    $stats = $service->stats();
     expect($stats['total_service_hooks'])->toBe(1);
 });
 
 test('addServiceBatchedHook registers a batched hook', function () {
     $service = new TraitTestService();
-    $service->addServiceBatchedHook('after', 'create', TraitTestHook::class);
+    $service->registerBatched('after', 'create', TraitTestHook::class);
 
-    $stats = $service->getHookStats();
+    $stats = $service->stats();
     expect($stats['total_service_hooks'])->toBe(1);
 });
 
 test('removeServiceHooks clears hooks for a method', function () {
     $service = new TraitTestService();
-    $service->addServiceSyncHook('after', 'create', TraitTestHook::class);
-    $service->removeServiceHooks('create', 'after');
+    $service->registerSync('after', 'create', TraitTestHook::class);
+    $service->removeHooksFor('create', 'after');
 
-    $stats = $service->getHookStats();
+    $stats = $service->stats();
     expect($stats['total_hooks'])->toBe(0);
 });
 
 test('removeServiceHook removes a specific hook', function () {
     $service = new TraitTestService();
-    $service->addServiceSyncHook('after', 'create', TraitTestHook::class);
-    $service->removeServiceHook('create', 'after', TraitTestHook::class);
+    $service->registerSync('after', 'create', TraitTestHook::class);
+    $service->removeHookFor('create', 'after', TraitTestHook::class);
 
-    $stats = $service->getHookStats();
+    $stats = $service->stats();
     expect($stats['total_hooks'])->toBe(0);
 });
 
 test('enableServiceHooks and disableHooks toggle execution', function () {
     $service = new TraitTestService();
-    $service->addServiceSyncHook('after', 'create', TraitTestHook::class);
-    $service->enableServiceHooks(false);
+    $service->registerSync('after', 'create', TraitTestHook::class);
+    $service->toggleHooks(false);
 
     $service->create();
 
@@ -146,11 +192,8 @@ test('methodSupportsHooks returns true when hookableMethods is empty', function 
 
 test('addHookForMethods registers hook for multiple methods', function () {
     $service = new TraitTestService();
-    // Access protected method via reflection
-    $ref = new \ReflectionMethod($service, 'addHookForMethods');
-    $ref->setAccessible(true);
-    $ref->invoke($service, 'after', ['create', 'update'], TraitTestHook::class);
+    $service->registerForMethods('after', ['create', 'update'], TraitTestHook::class);
 
-    $stats = $service->getHookStats();
+    $stats = $service->stats();
     expect($stats['total_service_hooks'])->toBe(2);
 });

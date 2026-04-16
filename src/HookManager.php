@@ -370,8 +370,8 @@ class HookManager
      */
     private function validatePhase(string $phase): void
     {
-        if (!in_array($phase, ['before', 'after'])) {
-            throw new \InvalidArgumentException("Invalid hook phase: {$phase}. Must be 'before' or 'after'.");
+        if (!in_array($phase, ['before', 'after', 'error'])) {
+            throw new \InvalidArgumentException("Invalid hook phase: {$phase}. Must be 'before', 'after', or 'error'.");
         }
     }
 

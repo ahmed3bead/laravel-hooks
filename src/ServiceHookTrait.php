@@ -5,10 +5,16 @@ namespace Ahmed3bead\LaravelHooks;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Service Hook Trait
+ * Hook Trait
  *
- * This trait provides hook functionality to service classes.
- * It handles hook registration and execution with minimal overhead.
+ * Adds before/after/error lifecycle hooks to any class — services,
+ * controllers, jobs, models, or plain PHP objects.
+ *
+ * Quick-start from inside the class:
+ *   $this->hook('before', 'create', MyHook::class);
+ *
+ * Quick-start from outside (service provider, test, anywhere):
+ *   app(HookManager::class)->addSyncHook(MyClass::class, 'create', 'after', MyHook::class);
  */
 trait ServiceHookTrait
 {
@@ -19,6 +25,57 @@ trait ServiceHookTrait
      * List of methods that support hooks. Empty means all methods are hookable.
      */
     protected array $hookableMethods = [];
+
+    // -------------------------------------------------------------------------
+    // Simple public API — works in any class (services, controllers, jobs, etc.)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Register a hook.
+     *
+     * @param string $phase     'before', 'after', or 'error'
+     * @param string $method    The method name to attach the hook to
+     * @param string $hookClass Hook class implementing HookJobInterface
+     * @param string $strategy  'sync' (default), 'queue', 'delay', or 'batch'
+     * @param array  $options   Optional: priority, delay, batch_size, enabled, ...
+     */
+    public function hook(
+        string $phase,
+        string $method,
+        string $hookClass,
+        string $strategy = 'sync',
+        array  $options = []
+    ): static {
+        return $this->addServiceHook($phase, $method, $hookClass, $strategy, $options);
+    }
+
+    /**
+     * Register a synchronous before-hook.
+     */
+    public function beforeHook(string $method, string $hookClass, array $options = []): static
+    {
+        return $this->addServiceHook('before', $method, $hookClass, 'sync', $options);
+    }
+
+    /**
+     * Register a synchronous after-hook.
+     */
+    public function afterHook(string $method, string $hookClass, array $options = []): static
+    {
+        return $this->addServiceHook('after', $method, $hookClass, 'sync', $options);
+    }
+
+    /**
+     * Register an error-hook (fires when the method throws).
+     */
+    public function errorHook(string $method, string $hookClass, array $options = []): static
+    {
+        return $this->addServiceHook('error', $method, $hookClass, 'sync', $options);
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal / advanced helpers (protected — override in subclasses as needed)
+    // -------------------------------------------------------------------------
 
     /**
      * Add a synchronous hook

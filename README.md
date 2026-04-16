@@ -1,8 +1,8 @@
 # Laravel Hooks
 
-Add **before**, **after**, and **error** lifecycle callbacks to any method in any class — services, controllers, jobs, models, or plain PHP objects.
+Add **before**, **after**, and **error** lifecycle hooks to any method in any class — controllers, services, jobs, models, or plain PHP objects.
 
-No event system boilerplate. No observers. Just attach a hook class to a method and it runs automatically.
+No event system boilerplate. No observers. Just attach a hook to a method and it runs automatically.
 
 ---
 
@@ -11,15 +11,15 @@ No event system boilerplate. No observers. Just attach a hook class to a method 
 - PHP 8.2+
 - Laravel 10, 11, 12, or 13
 
+---
+
 ## Installation
 
 ```bash
 composer require ahmedebead/laravel-hooks
 ```
 
-That's it. Laravel auto-discovers the package.
-
-To publish the config file:
+Laravel auto-discovers the package. To publish the config:
 
 ```bash
 php artisan vendor:publish --tag=laravel-hooks-config
@@ -29,7 +29,7 @@ php artisan vendor:publish --tag=laravel-hooks-config
 
 ## Quick Start
 
-### Step 1 — Add the trait to any class
+### 1. Add the trait to any class
 
 ```php
 use Ahmed3bead\LaravelHooks\HookableTrait;
@@ -40,7 +40,6 @@ class OrderService
 
     public function create(array $data): Order
     {
-        // Wrap the real work with executeWithHooks()
         return $this->executeWithHooks('create', function () use ($data) {
             return Order::create($data);
         });
@@ -48,13 +47,13 @@ class OrderService
 }
 ```
 
-### Step 2 — Create a hook
+### 2. Create a hook
 
 ```bash
 php artisan make:hook OrderCreated --type=audit --phase=after --sync
 ```
 
-Or create it manually:
+Or manually:
 
 ```php
 use Ahmed3bead\LaravelHooks\BaseHookJob;
@@ -75,9 +74,9 @@ class OrderCreatedHook extends BaseHookJob
 }
 ```
 
-### Step 3 — Register the hook
+### 3. Register the hook
 
-**Option A — from inside the class** (in a `registerHooks()` method that the trait calls automatically):
+**From inside the class** — `registerHooks()` is called automatically when the class first uses hooks:
 
 ```php
 class OrderService
@@ -91,7 +90,7 @@ class OrderService
 }
 ```
 
-**Option B — from a service provider** (register hooks for any class, anywhere):
+**From a service provider** — register hooks for any class from anywhere:
 
 ```php
 use Ahmed3bead\LaravelHooks\HookManager;
@@ -105,102 +104,135 @@ class AppServiceProvider extends ServiceProvider
 }
 ```
 
-**Option C — inline, anywhere in your code**:
+**Inline, anywhere** — fluent API on any instance:
 
 ```php
-$orderService = new OrderService();
 $orderService->afterHook('create', OrderCreatedHook::class);
 ```
 
 ---
 
-## The Trait — Full API
+## Works With Any Class
 
-Add `HookableTrait` to any class (not just services):
-
-```php
-use Ahmed3bead\LaravelHooks\HookableTrait;
-
-class MyController  { use HookableTrait; }
-class MyJob         { use HookableTrait; }
-class MyProcessor   { use HookableTrait; }
-```
-
-### Register hooks (public methods)
+`HookableTrait` is not limited to services:
 
 ```php
-// Phase shortcuts (always sync)
-$this->beforeHook('methodName', MyHook::class);
-$this->afterHook('methodName', MyHook::class);
-$this->errorHook('methodName', MyHook::class);
-
-// Explicit sync (choose the phase)
-$this->syncHook('before', 'methodName', MyHook::class);
-$this->syncHook('after',  'methodName', MyHook::class);
-$this->syncHook('error',  'methodName', MyHook::class);
-
-// With strategy and options
-$this->hook('after', 'methodName', MyHook::class, strategy: 'queue');
-$this->hook('after', 'methodName', MyHook::class, strategy: 'delay', options: ['delay' => 300]);
-```
-
-### Wrap a method call
-
-```php
-public function process(array $data): mixed
-{
-    return $this->executeWithHooks('process', function () use ($data) {
-        // your real logic here
-        return $this->doWork($data);
-    }, $data); // optional: pass data to the context
-}
+class UserController  { use HookableTrait; }
+class ProcessOrderJob { use HookableTrait; }
+class DataImporter    { use HookableTrait; }
+class User extends Model { use HookableTrait; }
 ```
 
 ---
 
 ## Execution Phases
 
-| Phase   | When it fires                                         |
-|---------|-------------------------------------------------------|
-| `before` | Before the method body runs                          |
-| `after`  | After the method returns a result                    |
-| `error`  | When the method throws — hook runs, exception re-thrown |
+| Phase   | When it fires |
+|---------|---------------|
+| `before` | Before the method body runs |
+| `after`  | After the method returns |
+| `error`  | When the method throws — hook fires, exception re-thrown |
+
+---
+
+## Registering Hooks
+
+### From inside the class (public API)
+
+```php
+// Phase shortcuts — always synchronous
+$this->beforeHook('create', MyHook::class);
+$this->afterHook('create', MyHook::class);
+$this->errorHook('create', MyHook::class);
+
+// Explicit sync — choose any phase
+$this->syncHook('before', 'create', MyHook::class);
+$this->syncHook('after',  'create', MyHook::class);
+$this->syncHook('error',  'create', MyHook::class);
+
+// Inline closure — no separate class needed
+$this->syncHookWithLogic('after', 'create', function (HookContext $ctx) {
+    Log::info('Created', ['user' => $ctx->getUserId()]);
+});
+
+// Any strategy
+$this->hook('after', 'create', MyHook::class, strategy: 'queue');
+$this->hook('after', 'create', MyHook::class, strategy: 'delay', options: ['delay' => 300]);
+
+// Inline closure with any strategy
+$this->hookWithLogic('after', 'create', function (HookContext $ctx) {
+    // runs in the background
+}, strategy: 'queue');
+```
+
+### From outside the class (HookManager)
+
+```php
+$hooks = app(HookManager::class);
+
+$hooks->addSyncHook(OrderService::class, 'create', 'after', AuditHook::class);
+$hooks->addQueuedHook(OrderService::class, 'create', 'after', EmailHook::class);
+$hooks->addDelayedHook(OrderService::class, 'create', 'after', FollowUpHook::class, delay: 3600);
+$hooks->addBatchedHook(OrderService::class, 'index', 'after', AnalyticsHook::class);
+
+// Register multiple at once
+$hooks->addHooks([
+    ['target' => OrderService::class, 'method' => 'create', 'phase' => 'after', 'hook' => AuditHook::class],
+    ['target' => OrderService::class, 'method' => 'update', 'phase' => 'after', 'hook' => AuditHook::class],
+]);
+
+// Global hook — fires for every class using HookableTrait
+$hooks->addGlobalHook('create', 'after', GlobalAuditHook::class);
+```
 
 ---
 
 ## Execution Strategies
 
-### Sync (default) — runs immediately, same request
+### Sync (default)
+
+Runs immediately in the same request.
 
 ```php
-$hooks->addSyncHook(OrderService::class, 'create', 'after', AuditHook::class);
-// or
 $this->afterHook('create', AuditHook::class);
+// or
+$hooks->addSyncHook(OrderService::class, 'create', 'after', AuditHook::class);
 ```
 
-### Queued — runs in the background via Laravel queues
+### Queued
+
+Pushed to a Laravel queue and processed in the background.
 
 ```php
-$hooks->addQueuedHook(OrderService::class, 'create', 'after', SendEmailHook::class);
+$this->hook('after', 'create', EmailHook::class, strategy: 'queue');
 // or
-$this->hook('after', 'create', SendEmailHook::class, strategy: 'queue');
+$hooks->addQueuedHook(OrderService::class, 'create', 'after', EmailHook::class);
 ```
 
-### Delayed — queued with a delay (seconds)
+### Delayed
+
+Queued with a delay (seconds).
 
 ```php
-$hooks->addDelayedHook(OrderService::class, 'create', 'after', FollowUpHook::class, delay: 3600);
-// or
 $this->hook('after', 'create', FollowUpHook::class, strategy: 'delay', options: ['delay' => 3600]);
+// or
+$hooks->addDelayedHook(OrderService::class, 'create', 'after', FollowUpHook::class, delay: 3600);
 ```
 
-### Batched — collected and processed together
+### Batched
+
+Collects executions and processes them together when the batch is full.
 
 ```php
-$hooks->addBatchedHook(OrderService::class, 'index', 'after', AnalyticsHook::class, options: ['batch_size' => 50]);
+$hooks->addBatchedHook(OrderService::class, 'index', 'after', AnalyticsHook::class, options: [
+    'batch_size' => 50,
+    'batch_delay' => 60, // seconds
+]);
 ```
 
-### Conditional — wraps any strategy with runtime conditions
+### Conditional
+
+Wraps any strategy with runtime conditions.
 
 ```php
 use Ahmed3bead\LaravelHooks\Strategies\ConditionalHookStrategy;
@@ -216,9 +248,24 @@ $hooks->addHook(OrderService::class, 'create', 'after', AuditHook::class, 'prod_
 
 ---
 
-## Hook Classes
+## Wrapping a Method
 
-### Using the base class
+Use `executeWithHooks()` inside any method to trigger the full before/after/error cycle automatically:
+
+```php
+public function process(array $data): mixed
+{
+    return $this->executeWithHooks('process', function () use ($data) {
+        return $this->doWork($data);
+    }, $data); // optional: pass $data into HookContext::$data
+}
+```
+
+---
+
+## Writing Hook Classes
+
+### Extend BaseHookJob
 
 ```php
 use Ahmed3bead\LaravelHooks\BaseHookJob;
@@ -226,9 +273,9 @@ use Ahmed3bead\LaravelHooks\HookContext;
 
 class MyHook extends BaseHookJob
 {
-    protected int $priority = 10;          // lower = runs first (default: 100)
-    protected bool $async = false;         // true = queued
-    protected string $queueName = 'hooks'; // queue to use when async
+    protected int $priority = 10;           // lower = runs first (default: 100)
+    protected bool $async = false;          // true = queued
+    protected string $queueName = 'hooks';  // queue name when async
 
     public function handle(HookContext $context): void
     {
@@ -237,65 +284,106 @@ class MyHook extends BaseHookJob
 }
 ```
 
-### Available context helpers
+### HookContext — what's available
 
 ```php
 public function handle(HookContext $context): void
 {
+    // Core
     $context->method;                  // 'create', 'update', ...
     $context->phase;                   // 'before', 'after', 'error'
-    $context->data;                    // input data
-    $context->result;                  // raw return value (after phase)
-    $context->service;                 // the object the method was called on
-    $context->user;                    // Auth::user() at time of call
+    $context->data;                    // value passed as $data to executeWithHooks()
+    $context->result;                  // raw return value (after/error phase)
+    $context->target;                  // the object the method was called on
+    $context->user;                    // Auth::user() at the time of the call
 
-    $context->getModelFromResult();    // extracts Eloquent model from result
-    $context->getDataFromResult();     // unwraps custom response objects
-    $context->getStatusCode();         // HTTP status if result is WrappedResponse
-    $context->getMessage();            // message if result is WrappedResponse
-    $context->isSuccessful();          // true for 2xx status codes
-    $context->getUserId();             // auth user's ID
+    // Helpers
+    $context->isBefore();              // true when phase === 'before'
+    $context->isAfter();               // true when phase === 'after'
+    $context->getParameter('key');     // named parameter by key
+    $context->getMetadata('key');      // metadata value by key
+
+    // Model extraction (works with plain models and wrapped responses)
+    $context->getModelFromResult();    // first Eloquent model found in result
+    $context->getDataFromResult();     // unwrapped data from result
     $context->getModelAttributes();    // model->toArray()
     $context->getModelChanges();       // model->getChanges()
-    $context->isBefore();
-    $context->isAfter();
-    $context->getParameter('key');
-    $context->getMetadata('key');
+    $context->getOriginalAttributes(); // model->getOriginal()
+    $context->wasModelRecentlyCreated(); // model->wasRecentlyCreated
+
+    // Response helpers (when result implements WrappedResponseInterface)
+    $context->getStatusCode();         // HTTP status code
+    $context->getMessage();            // response message
+    $context->isSuccessful();          // true for 2xx status codes
+    $context->hasWrappedResponse();    // true if result is a WrappedResponseInterface
+
+    // User
+    $context->getUserId();             // $user->id ?? $user->getKey()
 }
 ```
 
-### Adding conditions to a hook
+### Conditional execution
 
 ```php
 class MyHook extends BaseHookJob
 {
     public function shouldExecute(HookContext $context): bool
     {
-        // Only run when there is an authenticated user
-        return $context->user !== null;
+        return $context->user !== null; // only run for authenticated users
     }
 }
 ```
 
 ---
 
-## Priority
+## Inline Closures (No Class Required)
 
-Lower numbers run first. Default is 100.
+For quick, one-off hooks you don't need a full class:
 
 ```php
-$hooks->addHook(OrderService::class, 'create', 'after', EarlyHook::class, 'sync', ['priority' => 10]);
-$hooks->addHook(OrderService::class, 'create', 'after', LateHook::class,  'sync', ['priority' => 200]);
+// Synchronous inline hook
+$this->syncHookWithLogic('after', 'create', function (HookContext $ctx) {
+    Log::info('Created', [
+        'method'  => $ctx->method,
+        'user_id' => $ctx->getUserId(),
+    ]);
+});
+
+// Inline hook with any strategy
+$this->hookWithLogic('after', 'create', function (HookContext $ctx) {
+    dispatch(new SendWelcomeEmail($ctx->getUserId()));
+}, strategy: 'queue');
 ```
 
 ---
 
-## Global Hooks
+## Priority
 
-Run for every class that uses `HookableTrait`, for a given method name:
+Lower numbers run first. Default priority is `100`.
 
 ```php
-$hooks->addGlobalHook('create', 'after', GlobalAuditHook::class);
+// Runs first
+$hooks->addHook(OrderService::class, 'create', 'after', ValidationHook::class, 'sync', ['priority' => 10]);
+
+// Runs last
+$hooks->addHook(OrderService::class, 'create', 'after', NotificationHook::class, 'sync', ['priority' => 200]);
+```
+
+---
+
+## Custom Response Objects
+
+If your methods return a custom response wrapper, implement `WrappedResponseInterface` so hooks can extract the model and status automatically:
+
+```php
+use Ahmed3bead\LaravelHooks\Contracts\WrappedResponseInterface;
+
+class ApiResponse implements WrappedResponseInterface
+{
+    public function getData(): mixed      { return $this->data; }
+    public function getStatusCode(): int  { return $this->statusCode; }
+    public function getMessage(): string  { return $this->message; }
+}
 ```
 
 ---
@@ -312,35 +400,18 @@ php artisan make:hook OrderCreated --type=notification --sync
 
 Available `--type` values: `audit`, `notification`, `cache`, `logging`, `validation`, `security`, `analytics`, `general`
 
-### Manage the hook system
+### Manage hooks at runtime
 
 ```bash
-php artisan hooks:manage list                        # show all registered hooks
-php artisan hooks:manage stats                       # counts, strategies, debug mode
-php artisan hooks:manage test                        # sanity-check that everything loads
+php artisan hooks:manage list                                        # all registered hooks
+php artisan hooks:manage stats                                       # counts, strategies, debug mode
+php artisan hooks:manage debug --target="App\Services\OrderService" # hooks for one class
+php artisan hooks:manage test                                        # verify the system loads
 php artisan hooks:manage enable
 php artisan hooks:manage disable --force
-php artisan hooks:manage clear --force
-php artisan hooks:manage flush                       # flush pending batched hooks
+php artisan hooks:manage clear  --force
+php artisan hooks:manage flush                                       # flush pending batched hooks
 php artisan hooks:manage export --export=hooks.json
-php artisan hooks:manage debug --service="App\Services\OrderService"
-```
-
----
-
-## Custom Response Objects
-
-If your methods return a custom response wrapper (not a plain model), implement `WrappedResponseInterface` so hooks can extract the model and status automatically:
-
-```php
-use Ahmed3bead\LaravelHooks\Contracts\WrappedResponseInterface;
-
-class ApiResponse implements WrappedResponseInterface
-{
-    public function getData(): mixed   { return $this->data; }
-    public function getStatusCode(): int { return $this->statusCode; }
-    public function getMessage(): string { return $this->message; }
-}
 ```
 
 ---
@@ -354,7 +425,7 @@ class ApiResponse implements WrappedResponseInterface
 | `enabled` | `true` | Enable/disable all hooks globally |
 | `debug` | `false` | Log every hook registration and execution |
 | `queue_connection` | `null` | Queue connection for async hooks (`null` = default) |
-| `default_queue` | `'default'` | Queue name for queued hooks |
+| `default_queue` | `'default'` | Queue name for queued/delayed hooks |
 | `batch_queue` | `'batch'` | Queue name for batched hooks |
 | `generation_directory` | `'App\\Hooks'` | Namespace for generated hook classes |
 
@@ -370,14 +441,14 @@ LARAVEL_HOOKS_BATCH_QUEUE=batch
 
 ---
 
-## Testing Your Hooks
+## Testing
 
 ```bash
 vendor/bin/pest
 vendor/bin/pest --coverage
 ```
 
-In your own tests, use `Queue::fake()` to assert hooks were dispatched:
+Use `Queue::fake()` to assert queued hooks were dispatched without processing them:
 
 ```php
 use Illuminate\Support\Facades\Queue;
@@ -389,6 +460,30 @@ $service->create(['name' => 'Test']);
 
 Queue::assertPushed(QueuedHookJob::class);
 ```
+
+---
+
+## Upgrading from an Earlier Version
+
+### Renamed identifiers
+
+| Old | New |
+|-----|-----|
+| `HookContext::$service` | `HookContext::$target` |
+| `addServiceSyncHook()` | `addSyncHookRegistration()` |
+| `addServiceQueuedHook()` | `addQueuedHookRegistration()` |
+| `addServiceDelayedHook()` | `addDelayedHookRegistration()` |
+| `addServiceBatchedHook()` | `addBatchedHookRegistration()` |
+| `addServiceHook()` | `addHookRegistration()` |
+| `removeServiceHooks()` | `removeHooks()` |
+| `removeServiceHook()` | `removeHook()` |
+| `enableServiceHooks()` | `enableHooks()` |
+| `debugService()` | `debugTarget()` |
+| `--service` CLI flag | `--target` CLI flag |
+| `total_service_hooks` stat key | `total_target_hooks` |
+| `service_hooks` array key | `target_hooks` |
+
+All old names still work but emit `E_USER_DEPRECATED`. Update at your own pace.
 
 ---
 

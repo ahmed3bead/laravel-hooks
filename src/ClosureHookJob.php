@@ -16,11 +16,20 @@ class ClosureHookJob implements HookJobInterface
 {
     private \Closure $callback;
 
+    /**
+     * @param  callable  $callback  The callable to wrap. Converted to a Closure
+     *                              internally to ensure a consistent type.
+     */
     public function __construct(callable $callback)
     {
         $this->callback = \Closure::fromCallable($callback);
     }
 
+    /**
+     * Execute the wrapped closure with the given hook context.
+     *
+     * @param  HookContext  $context  The current hook execution context
+     */
     public function handle(HookContext $context): void
     {
         ($this->callback)($context);
@@ -66,6 +75,13 @@ class ClosureHookJob implements HookJobInterface
         return ['type' => 'closure'];
     }
 
+    /**
+     * Execute the hook with error logging.
+     *
+     * @param  HookContext  $context  The current hook execution context
+     *
+     * @throws \Exception Re-thrown after logging
+     */
     public function execute(HookContext $context): void
     {
         try {

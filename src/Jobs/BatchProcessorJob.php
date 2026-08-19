@@ -2,6 +2,7 @@
 
 namespace Ahmed3bead\LaravelHooks\Jobs;
 
+use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -77,7 +78,7 @@ class BatchProcessorJob implements ShouldQueue
      * Supports both cache-backed format (hook_class string) and
      * legacy in-memory format (hook object).
      */
-    private function resolveHook(array $item): \Ahmed3bead\LaravelHooks\Contracts\HookJobInterface
+    private function resolveHook(array $item): HookJobInterface
     {
         // Cache-backed format: class name stored as string
         if (isset($item['hook_class'])) {
@@ -87,7 +88,7 @@ class BatchProcessorJob implements ShouldQueue
                 throw new \RuntimeException('Batch item contains invalid hook class: '.(is_string($hookClass) ? $hookClass : gettype($hookClass)));
             }
 
-            if (! is_a($hookClass, \Ahmed3bead\LaravelHooks\Contracts\HookJobInterface::class, true)) {
+            if (! is_a($hookClass, HookJobInterface::class, true)) {
                 throw new \RuntimeException("Batch hook class does not implement HookJobInterface: {$hookClass}");
             }
 

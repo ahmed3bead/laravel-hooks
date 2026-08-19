@@ -2,6 +2,8 @@
 
 use Ahmed3bead\LaravelHooks\BaseHookJob;
 use Ahmed3bead\LaravelHooks\HookContext;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 // Concrete implementation for testing
 class ConcreteHookJob extends BaseHookJob
@@ -142,7 +144,7 @@ test('handleError logs error with context', function () {
     $hook = new ConcreteHookJob;
     $hook->shouldFail = true;
 
-    \Illuminate\Support\Facades\Log::shouldReceive('error')
+    Log::shouldReceive('error')
         ->once()
         ->withArgs(function ($message, $data) {
             return $message === 'Hook execution failed'
@@ -156,12 +158,12 @@ test('handleError logs error with context', function () {
 });
 
 test('handleError includes trace when debug mode is enabled', function () {
-    config(['laravel-hooks.debug' => true]);
+    config(['laravel-hooks.debug' => true, 'app.debug' => true]);
 
     $hook = new ConcreteHookJob;
     $hook->shouldFail = true;
 
-    \Illuminate\Support\Facades\Log::shouldReceive('error')
+    Log::shouldReceive('error')
         ->once()
         ->withArgs(function ($message, $data) {
             return $message === 'Hook execution failed'
@@ -170,13 +172,13 @@ test('handleError includes trace when debug mode is enabled', function () {
 
     expect(fn () => $hook->execute(makeCtx()))->toThrow(RuntimeException::class);
 
-    config(['laravel-hooks.debug' => false]);
+    config(['laravel-hooks.debug' => false, 'app.debug' => false]);
 });
 
 // --- Config setters ---
 
 test('setPriority changes priority', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -191,7 +193,7 @@ test('setPriority changes priority', function () {
 });
 
 test('setRetryConfig changes retry attempts and delay', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -207,7 +209,7 @@ test('setRetryConfig changes retry attempts and delay', function () {
 });
 
 test('setTimeout changes timeout', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -222,7 +224,7 @@ test('setTimeout changes timeout', function () {
 });
 
 test('setAsync changes async and queue name', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -238,7 +240,7 @@ test('setAsync changes async and queue name', function () {
 });
 
 test('addMetadata adds to metadata', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -256,7 +258,7 @@ test('addMetadata adds to metadata', function () {
 // --- Condition helpers ---
 
 test('onlyForUser condition works', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -288,7 +290,7 @@ test('onlyForUser condition works', function () {
 });
 
 test('onlyForModel condition works', function () {
-    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    $hook = new class extends BaseHookJob
     {
         public function handle(HookContext $context): void {}
 
@@ -298,9 +300,9 @@ test('onlyForModel condition works', function () {
         }
     };
 
-    $hook->exposeOnlyForModel(\Illuminate\Database\Eloquent\Model::class);
+    $hook->exposeOnlyForModel(Model::class);
 
-    $model = new class extends \Illuminate\Database\Eloquent\Model
+    $model = new class extends Model
     {
         protected $guarded = [];
     };

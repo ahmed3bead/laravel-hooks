@@ -56,7 +56,9 @@ class BatchedHookStrategy implements HookExecutionStrategy
         ];
 
         // Store with a TTL to prevent stale batches from lingering forever
-        $ttl = max($this->batchDelay * 3, 300);
+        $multiplier = (int) config('laravel-hooks.batch_cache_ttl_multiplier', 3);
+        $minTtl = (int) config('laravel-hooks.batch_cache_min_ttl', 300);
+        $ttl = max($this->batchDelay * $multiplier, $minTtl);
         Cache::put($cacheKey, $batch, $ttl);
 
         if (count($batch) >= $this->batchSize) {
@@ -122,12 +124,11 @@ class BatchedHookStrategy implements HookExecutionStrategy
     {
         $schedulerCacheKey = self::makeCacheKey($batchKey.':scheduled');
 
-        // Only schedule one job per batch key to avoid duplicate processing
-        if (Cache::has($schedulerCacheKey)) {
+        // Atomically set the scheduling flag — Cache::add() returns false
+        // if the key already exists, preventing duplicate scheduler jobs.
+        if (! Cache::add($schedulerCacheKey, true, $this->batchDelay + 30)) {
             return;
         }
-
-        Cache::put($schedulerCacheKey, true, $this->batchDelay + 30);
 
         $job = new BatchSchedulerJob($batchKey, $this->batchDelay);
 
@@ -150,6 +151,13 @@ class BatchedHookStrategy implements HookExecutionStrategy
 
     /**
      * Build the cache key for a given batch key.
+     *
+     * Uses a SHA-256 hash to produce a fixed-length, safe cache key
+     * regardless of the batch key contents (which may include class names
+     * with backslashes or other special characters).
+     *
+     * @param  string  $batchKey  The logical batch identifier (e.g. "default_App\Hooks\MyHook_create")
+     * @return string Cache key in the format "laravel-hooks:batch:<sha256>"
      */
     public static function makeCacheKey(string $batchKey): string
     {

@@ -300,7 +300,7 @@ class HookContext
     {
         $statusCode = $this->getStatusCode();
 
-        return $statusCode >= 200 && $statusCode < 300;
+        return $statusCode !== null && $statusCode >= 200 && $statusCode < 300;
     }
 
     /**

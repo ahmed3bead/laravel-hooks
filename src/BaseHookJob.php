@@ -219,7 +219,10 @@ abstract class BaseHookJob implements HookJobInterface
     }
 
     /**
-     * Called before hook execution - can be overridden
+     * Called before hook execution — override in child classes to add
+     * pre-execution logic such as logging or metric collection.
+     *
+     * @param  HookContext  $context  The current hook execution context
      */
     protected function beforeExecution(HookContext $context): void
     {
@@ -227,7 +230,10 @@ abstract class BaseHookJob implements HookJobInterface
     }
 
     /**
-     * Called after successful hook execution - can be overridden
+     * Called after successful hook execution — override in child classes
+     * to add post-execution logic such as cleanup or notifications.
+     *
+     * @param  HookContext  $context  The current hook execution context
      */
     protected function afterExecution(HookContext $context): void
     {
@@ -235,7 +241,14 @@ abstract class BaseHookJob implements HookJobInterface
     }
 
     /**
-     * Handle errors during hook execution
+     * Handle errors during hook execution.
+     *
+     * Logs the error with context. Stack traces are only included when
+     * both `laravel-hooks.debug` and `app.debug` are enabled, preventing
+     * accidental trace exposure in production.
+     *
+     * @param  \Exception  $e  The exception that occurred
+     * @param  HookContext  $context  The current hook execution context
      */
     protected function handleError(\Exception $e, HookContext $context): void
     {
@@ -245,7 +258,7 @@ abstract class BaseHookJob implements HookJobInterface
             'context' => $context->toLogArray(),
         ];
 
-        if (config('laravel-hooks.debug')) {
+        if (config('laravel-hooks.debug') && config('app.debug')) {
             $logData['trace'] = $e->getTraceAsString();
         }
 

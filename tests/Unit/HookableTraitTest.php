@@ -367,7 +367,7 @@ test('hook method registers with custom strategy', function () {
 test('safeExecuteHooks does not throw on hook failure', function () {
     $service = new class
     {
-        use \Ahmed3bead\LaravelHooks\HookableTrait;
+        use HookableTrait;
 
         public function doSafe(): void
         {
@@ -377,9 +377,9 @@ test('safeExecuteHooks does not throw on hook failure', function () {
 
     $failingClass = 'SafeFailHook_'.uniqid();
     eval("
-        class {$failingClass} implements ".Ahmed3bead\LaravelHooks\Contracts\HookJobInterface::class.' {
-            public function handle('.Ahmed3bead\LaravelHooks\HookContext::class.' $ctx): void { throw new RuntimeException("safe fail"); }
-            public function shouldExecute('.Ahmed3bead\LaravelHooks\HookContext::class.' $ctx): bool { return true; }
+        class {$failingClass} implements ".HookJobInterface::class.' {
+            public function handle('.HookContext::class.' $ctx): void { throw new RuntimeException("safe fail"); }
+            public function shouldExecute('.HookContext::class.' $ctx): bool { return true; }
             public function getPriority(): int { return 100; }
             public function getRetryAttempts(): int { return 1; }
             public function getRetryDelay(): int { return 0; }
@@ -387,11 +387,11 @@ test('safeExecuteHooks does not throw on hook failure', function () {
             public function isAsync(): bool { return false; }
             public function getQueueName(): string { return "default"; }
             public function getMetadata(): array { return []; }
-            public function execute('.Ahmed3bead\LaravelHooks\HookContext::class.' $ctx): void { $this->handle($ctx); }
+            public function execute('.HookContext::class.' $ctx): void { $this->handle($ctx); }
         }
     ');
 
-    $manager = app(\Ahmed3bead\LaravelHooks\HookManager::class);
+    $manager = app(HookManager::class);
     $manager->addSyncHook(get_class($service), 'create', 'after', $failingClass, ['stop_on_failure' => true]);
 
     // Should not throw
@@ -404,7 +404,7 @@ test('safeExecuteHooks does not throw on hook failure', function () {
 test('methodSupportsHooks returns false for unlisted methods', function () {
     $service = new class
     {
-        use \Ahmed3bead\LaravelHooks\HookableTrait;
+        use HookableTrait;
 
         public function __construct()
         {
@@ -428,7 +428,7 @@ test('getHookMetadata excludes request metadata by default', function () {
 
     $service = new class
     {
-        use \Ahmed3bead\LaravelHooks\HookableTrait;
+        use HookableTrait;
 
         public function exposeMeta(): array
         {
@@ -449,7 +449,7 @@ test('getHookMetadata includes request metadata when enabled', function () {
 
     $service = new class
     {
-        use \Ahmed3bead\LaravelHooks\HookableTrait;
+        use HookableTrait;
 
         public function exposeMeta(): array
         {

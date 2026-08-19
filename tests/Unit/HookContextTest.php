@@ -356,6 +356,18 @@ test('getMessage returns null for non-wrapped result', function () {
     expect($ctx->getMessage())->toBeNull();
 });
 
+// --- isSuccessful with no wrapped response ---
+
+test('isSuccessful returns false when result is not a wrapped response', function () {
+    $ctx = new HookContext('create', 'after', null, [], 'plain string', makeService());
+    expect($ctx->isSuccessful())->toBeFalse();
+});
+
+test('isSuccessful returns false when result is null', function () {
+    $ctx = new HookContext('create', 'after', null, [], null, makeService());
+    expect($ctx->isSuccessful())->toBeFalse();
+});
+
 // --- getRequestData ---
 
 test('getRequestData returns empty array when no request', function () {

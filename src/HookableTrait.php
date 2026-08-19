@@ -152,7 +152,7 @@ trait HookableTrait
         string $method,
         string $hookClass,
         array $options = []
-    ): self {
+    ): static {
         $this->getHookManager()->addSyncHook(
             static::class,
             $method,
@@ -215,7 +215,7 @@ trait HookableTrait
         string $method,
         string $hookClass,
         array $options = []
-    ): self {
+    ): static {
         $this->getHookManager()->addQueuedHook(
             static::class,
             $method,
@@ -236,7 +236,7 @@ trait HookableTrait
         string $hookClass,
         int $delay = 30,
         array $options = []
-    ): self {
+    ): static {
         $this->getHookManager()->addDelayedHook(
             static::class,
             $method,
@@ -257,7 +257,7 @@ trait HookableTrait
         string $method,
         string $hookClass,
         array $options = []
-    ): self {
+    ): static {
         $this->getHookManager()->addBatchedHook(
             static::class,
             $method,
@@ -272,7 +272,7 @@ trait HookableTrait
     /**
      * Add multiple hook registrations at once.
      */
-    protected function addHookRegistrations(array $hookDefinitions): self
+    protected function addHookRegistrations(array $hookDefinitions): static
     {
         foreach ($hookDefinitions as $definition) {
             $this->addHookRegistration(
@@ -296,7 +296,7 @@ trait HookableTrait
         string $hookClass,
         string $strategy = 'sync',
         array $options = []
-    ): self {
+    ): static {
         $this->getHookManager()->addHook(
             static::class,
             $method,
@@ -312,7 +312,7 @@ trait HookableTrait
     /**
      * Remove all hooks for a method and phase.
      */
-    protected function removeHooks(string $method, string $phase): self
+    protected function removeHooks(string $method, string $phase): static
     {
         $this->getHookManager()->removeHooks(static::class, $method, $phase);
 
@@ -326,7 +326,7 @@ trait HookableTrait
         string $method,
         string $phase,
         string $hookClass
-    ): self {
+    ): static {
         $this->getHookManager()->removeHook(static::class, $method, $phase, $hookClass);
 
         return $this;
@@ -335,7 +335,7 @@ trait HookableTrait
     /**
      * Enable or disable hook execution for this class.
      */
-    protected function enableHooks(bool $enabled = true): self
+    protected function enableHooks(bool $enabled = true): static
     {
         $this->getHookManager()->enable($enabled);
 
@@ -522,7 +522,7 @@ trait HookableTrait
     /**
      * Bulk register hooks from an array configuration.
      */
-    protected function registerHooksFromConfig(array $config): self
+    protected function registerHooksFromConfig(array $config): static
     {
         foreach ($config as $hookDef) {
             $this->addHookRegistration(
@@ -547,7 +547,7 @@ trait HookableTrait
         callable $condition,
         string $strategy = 'sync',
         array $options = []
-    ): self {
+    ): static {
         $options['conditions'] = $options['conditions'] ?? [];
         $options['conditions'][] = $condition;
 
@@ -563,7 +563,7 @@ trait HookableTrait
         string $hookClass,
         string $strategy = 'sync',
         array $options = []
-    ): self {
+    ): static {
         foreach ($methods as $method) {
             $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
         }
@@ -581,7 +581,7 @@ trait HookableTrait
         int $priority,
         string $strategy = 'sync',
         array $options = []
-    ): self {
+    ): static {
         $options['priority'] = $priority;
 
         return $this->addHookRegistration($phase, $method, $hookClass, $strategy, $options);
@@ -656,7 +656,7 @@ trait HookableTrait
     // -------------------------------------------------------------------------
 
     /** @deprecated Use addSyncHookRegistration() instead. */
-    protected function addServiceSyncHook(string $phase, string $method, string $hookClass, array $options = []): self
+    protected function addServiceSyncHook(string $phase, string $method, string $hookClass, array $options = []): static
     {
         trigger_error('addServiceSyncHook() is deprecated, use addSyncHookRegistration() instead.', E_USER_DEPRECATED);
 
@@ -664,7 +664,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use addQueuedHookRegistration() instead. */
-    protected function addServiceQueuedHook(string $phase, string $method, string $hookClass, array $options = []): self
+    protected function addServiceQueuedHook(string $phase, string $method, string $hookClass, array $options = []): static
     {
         trigger_error('addServiceQueuedHook() is deprecated, use addQueuedHookRegistration() instead.', E_USER_DEPRECATED);
 
@@ -672,7 +672,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use addDelayedHookRegistration() instead. */
-    protected function addServiceDelayedHook(string $phase, string $method, string $hookClass, int $delay = 30, array $options = []): self
+    protected function addServiceDelayedHook(string $phase, string $method, string $hookClass, int $delay = 30, array $options = []): static
     {
         trigger_error('addServiceDelayedHook() is deprecated, use addDelayedHookRegistration() instead.', E_USER_DEPRECATED);
 
@@ -680,7 +680,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use addBatchedHookRegistration() instead. */
-    protected function addServiceBatchedHook(string $phase, string $method, string $hookClass, array $options = []): self
+    protected function addServiceBatchedHook(string $phase, string $method, string $hookClass, array $options = []): static
     {
         trigger_error('addServiceBatchedHook() is deprecated, use addBatchedHookRegistration() instead.', E_USER_DEPRECATED);
 
@@ -688,7 +688,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use addHookRegistration() instead. */
-    protected function addServiceHook(string $phase, string $method, string $hookClass, string $strategy = 'sync', array $options = []): self
+    protected function addServiceHook(string $phase, string $method, string $hookClass, string $strategy = 'sync', array $options = []): static
     {
         trigger_error('addServiceHook() is deprecated, use addHookRegistration() instead.', E_USER_DEPRECATED);
 
@@ -696,7 +696,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use addHookRegistrations() instead. */
-    protected function addServiceHooks(array $hookDefinitions): self
+    protected function addServiceHooks(array $hookDefinitions): static
     {
         trigger_error('addServiceHooks() is deprecated, use addHookRegistrations() instead.', E_USER_DEPRECATED);
 
@@ -704,7 +704,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use removeHooks() instead. */
-    protected function removeServiceHooks(string $method, string $phase): self
+    protected function removeServiceHooks(string $method, string $phase): static
     {
         trigger_error('removeServiceHooks() is deprecated, use removeHooks() instead.', E_USER_DEPRECATED);
 
@@ -712,7 +712,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use removeHook() instead. */
-    protected function removeServiceHook(string $method, string $phase, string $hookClass): self
+    protected function removeServiceHook(string $method, string $phase, string $hookClass): static
     {
         trigger_error('removeServiceHook() is deprecated, use removeHook() instead.', E_USER_DEPRECATED);
 
@@ -720,7 +720,7 @@ trait HookableTrait
     }
 
     /** @deprecated Use enableHooks() instead. */
-    protected function enableServiceHooks(bool $enabled = true): self
+    protected function enableServiceHooks(bool $enabled = true): static
     {
         trigger_error('enableServiceHooks() is deprecated, use enableHooks() instead.', E_USER_DEPRECATED);
 

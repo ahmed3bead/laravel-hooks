@@ -537,3 +537,40 @@ test('make:hook with before phase sets onlyForPhase', function () {
 
     @unlink($path);
 });
+
+// --- MakeHookCommand name validation ---
+
+test('make:hook rejects name starting with a number', function () {
+    $this->artisan('make:hook', [
+        'name' => '123InvalidName',
+        '--type' => 'cache',
+        '--method' => ['create'],
+        '--phase' => 'after',
+        '--sync' => true,
+    ])->assertExitCode(1);
+});
+
+test('make:hook rejects name with special characters', function () {
+    $this->artisan('make:hook', [
+        'name' => 'Invalid-Name!',
+        '--type' => 'cache',
+        '--method' => ['create'],
+        '--phase' => 'after',
+        '--sync' => true,
+    ])->assertExitCode(1);
+});
+
+test('make:hook accepts valid name with underscores', function () {
+    $name = 'Valid_Hook_Name'.uniqid();
+
+    $this->artisan('make:hook', [
+        'name' => $name,
+        '--type' => 'cache',
+        '--method' => ['create'],
+        '--phase' => 'after',
+        '--sync' => true,
+    ])->assertExitCode(0);
+
+    $className = $name.'Hook';
+    @unlink(app_path("Hooks/{$className}.php"));
+});

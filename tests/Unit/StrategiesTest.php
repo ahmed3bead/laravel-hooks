@@ -3,6 +3,7 @@
 use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
 use Ahmed3bead\LaravelHooks\HookContext;
 use Ahmed3bead\LaravelHooks\Jobs\BatchProcessorJob;
+use Ahmed3bead\LaravelHooks\Jobs\BatchSchedulerJob;
 use Ahmed3bead\LaravelHooks\Jobs\QueuedHookJob;
 use Ahmed3bead\LaravelHooks\Strategies\BatchedHookStrategy;
 use Ahmed3bead\LaravelHooks\Strategies\ConditionalHookStrategy;
@@ -10,6 +11,7 @@ use Ahmed3bead\LaravelHooks\Strategies\DelayedHookStrategy;
 use Ahmed3bead\LaravelHooks\Strategies\QueuedHookStrategy;
 use Ahmed3bead\LaravelHooks\Strategies\SyncHookStrategy;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 
 // Spy hook for strategy tests
@@ -385,15 +387,50 @@ test('SyncHookStrategy caps retries at MAX_SYNC_RETRIES = 3', function () {
             throw new RuntimeException('always fails');
         }
 
-        public function shouldExecute(HookContext $ctx): bool { return true; }
-        public function getPriority(): int { return 100; }
-        public function getRetryAttempts(): int { return 10; } // Requests 10 but should be capped at 3
-        public function getRetryDelay(): int { return 0; }
-        public function getTimeout(): int { return 30; }
-        public function isAsync(): bool { return false; }
-        public function getQueueName(): string { return 'default'; }
-        public function getMetadata(): array { return []; }
-        public function execute(HookContext $ctx): void { $this->handle($ctx); }
+        public function shouldExecute(HookContext $ctx): bool
+        {
+            return true;
+        }
+
+        public function getPriority(): int
+        {
+            return 100;
+        }
+
+        public function getRetryAttempts(): int
+        {
+            return 10;
+        } // Requests 10 but should be capped at 3
+
+        public function getRetryDelay(): int
+        {
+            return 0;
+        }
+
+        public function getTimeout(): int
+        {
+            return 30;
+        }
+
+        public function isAsync(): bool
+        {
+            return false;
+        }
+
+        public function getQueueName(): string
+        {
+            return 'default';
+        }
+
+        public function getMetadata(): array
+        {
+            return [];
+        }
+
+        public function execute(HookContext $ctx): void
+        {
+            $this->handle($ctx);
+        }
     };
 
     try {
@@ -420,15 +457,50 @@ test('SyncHookStrategy uses hook retry attempts when less than cap', function ()
             throw new RuntimeException('always fails');
         }
 
-        public function shouldExecute(HookContext $ctx): bool { return true; }
-        public function getPriority(): int { return 100; }
-        public function getRetryAttempts(): int { return 2; } // Less than cap of 3
-        public function getRetryDelay(): int { return 0; }
-        public function getTimeout(): int { return 30; }
-        public function isAsync(): bool { return false; }
-        public function getQueueName(): string { return 'default'; }
-        public function getMetadata(): array { return []; }
-        public function execute(HookContext $ctx): void { $this->handle($ctx); }
+        public function shouldExecute(HookContext $ctx): bool
+        {
+            return true;
+        }
+
+        public function getPriority(): int
+        {
+            return 100;
+        }
+
+        public function getRetryAttempts(): int
+        {
+            return 2;
+        } // Less than cap of 3
+
+        public function getRetryDelay(): int
+        {
+            return 0;
+        }
+
+        public function getTimeout(): int
+        {
+            return 30;
+        }
+
+        public function isAsync(): bool
+        {
+            return false;
+        }
+
+        public function getQueueName(): string
+        {
+            return 'default';
+        }
+
+        public function getMetadata(): array
+        {
+            return [];
+        }
+
+        public function execute(HookContext $ctx): void
+        {
+            $this->handle($ctx);
+        }
     };
 
     try {
@@ -475,4 +547,53 @@ test('DelayedHookStrategy supportsRetry returns true', function () {
 
 test('QueuedHookStrategy supportsRetry returns true', function () {
     expect((new QueuedHookStrategy)->supportsRetry())->toBeTrue();
+});
+
+// --- ConditionalHookStrategy exception handling ---
+
+test('ConditionalHookStrategy catches exception from condition and skips execution', function () {
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->addCondition(fn () => throw new RuntimeException('condition failed'));
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx('create'));
+
+    // Hook should NOT have executed — the throwing condition should be caught
+    expect($hook->executed)->toBeEmpty();
+});
+
+test('ConditionalHookStrategy logs error when condition throws', function () {
+    Log::shouldReceive('error')
+        ->once()
+        ->withArgs(function (string $message, array $context) {
+            return $message === 'Conditional hook strategy condition threw an exception'
+                && $context['error'] === 'boom';
+        });
+
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->addCondition(fn () => throw new RuntimeException('boom'));
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx());
+});
+
+// --- BatchedHookStrategy atomic scheduling ---
+
+test('BatchedHookStrategy does not schedule duplicate jobs for same batch key', function () {
+    Queue::fake();
+
+    $strategy = new BatchedHookStrategy(batchSize: 100, batchDelay: 60);
+    $hook = new SpyHook;
+    $ctx = makeStrategyCtx();
+
+    // First execution should schedule
+    $strategy->execute($hook, $ctx);
+
+    // Second execution with same batch key should NOT schedule again (Cache::add returns false)
+    $strategy->execute($hook, $ctx);
+
+    // Only one BatchSchedulerJob should be pushed (the second is deduplicated)
+    Queue::assertPushed(BatchSchedulerJob::class, 1);
 });

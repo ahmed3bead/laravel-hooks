@@ -2,12 +2,12 @@
 
 namespace Ahmed3bead\LaravelHooks\Jobs;
 
+use Ahmed3bead\LaravelHooks\Strategies\BatchedHookStrategy;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Ahmed3bead\LaravelHooks\Strategies\BatchedHookStrategy;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -24,6 +24,11 @@ class BatchSchedulerJob implements ShouldQueue
 
     public int $timeout = 60;
 
+    /**
+     * @param  string  $batchKey  The cache key identifying the batch to process
+     * @param  int  $batchDelay  Seconds to delay execution; assigned to `$this->delay`
+     *                           which is provided by the Queueable trait
+     */
     public function __construct(
         private string $batchKey,
         int $batchDelay

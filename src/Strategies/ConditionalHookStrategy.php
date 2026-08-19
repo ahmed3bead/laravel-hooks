@@ -36,7 +36,20 @@ class ConditionalHookStrategy implements HookExecutionStrategy
     public function execute(HookJobInterface $hook, HookContext $context): void
     {
         foreach ($this->conditions as $condition) {
-            if (! $condition($context)) {
+            try {
+                $result = $condition($context);
+            } catch (\Exception $e) {
+                Log::error('Conditional hook strategy condition threw an exception', [
+                    'hook' => get_class($hook),
+                    'strategy' => $this->strategy->getName(),
+                    'error' => $e->getMessage(),
+                    'context' => $context->toLogArray(),
+                ]);
+
+                return;
+            }
+
+            if (! $result) {
                 Log::debug('Conditional hook strategy condition failed', [
                     'hook' => get_class($hook),
                     'strategy' => $this->strategy->getName(),

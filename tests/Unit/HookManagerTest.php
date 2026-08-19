@@ -4,6 +4,7 @@ use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
 use Ahmed3bead\LaravelHooks\HookContext;
 use Ahmed3bead\LaravelHooks\HookManager;
 use Ahmed3bead\LaravelHooks\HookRegistry;
+use Ahmed3bead\LaravelHooks\Strategies\SyncHookStrategy;
 
 // Concrete hook class for manager tests
 class ManagerTestHook implements HookJobInterface
@@ -329,7 +330,7 @@ test('removeHook removes a specific hook', function () {
 
 test('registerStrategy allows using custom strategy', function () {
     $manager = new HookManager(new HookRegistry);
-    $customStrategy = new \Ahmed3bead\LaravelHooks\Strategies\SyncHookStrategy;
+    $customStrategy = new SyncHookStrategy;
     $manager->registerStrategy('my_sync', $customStrategy);
 
     // Should not throw — strategy is now valid
@@ -375,7 +376,7 @@ test('executeHooks rethrows exception from hook execution', function () {
 
     $failingHookClass = 'ManagerFailHook_'.uniqid();
     eval("
-        class {$failingHookClass} implements ".Ahmed3bead\LaravelHooks\Contracts\HookJobInterface::class.' {
+        class {$failingHookClass} implements ".HookJobInterface::class.' {
             public function handle('.HookContext::class.' $ctx): void { throw new RuntimeException("test error"); }
             public function shouldExecute('.HookContext::class.' $ctx): bool { return true; }
             public function getPriority(): int { return 100; }

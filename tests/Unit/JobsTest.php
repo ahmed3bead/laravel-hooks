@@ -6,7 +6,6 @@ use Ahmed3bead\LaravelHooks\Jobs\BatchProcessorJob;
 use Ahmed3bead\LaravelHooks\Jobs\BatchSchedulerJob;
 use Ahmed3bead\LaravelHooks\Jobs\HookChainJob;
 use Ahmed3bead\LaravelHooks\Jobs\QueuedHookJob;
-use Ahmed3bead\LaravelHooks\Strategies\BatchedHookStrategy;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 
@@ -208,23 +207,50 @@ test('HookChainJob handle continues on failure when stopOnFailure is false', fun
             throw new RuntimeException('fail');
         }
 
-        public function shouldExecute(HookContext $ctx): bool { return true; }
+        public function shouldExecute(HookContext $ctx): bool
+        {
+            return true;
+        }
 
-        public function getPriority(): int { return 100; }
+        public function getPriority(): int
+        {
+            return 100;
+        }
 
-        public function getRetryAttempts(): int { return 1; }
+        public function getRetryAttempts(): int
+        {
+            return 1;
+        }
 
-        public function getRetryDelay(): int { return 0; }
+        public function getRetryDelay(): int
+        {
+            return 0;
+        }
 
-        public function getTimeout(): int { return 30; }
+        public function getTimeout(): int
+        {
+            return 30;
+        }
 
-        public function isAsync(): bool { return false; }
+        public function isAsync(): bool
+        {
+            return false;
+        }
 
-        public function getQueueName(): string { return 'default'; }
+        public function getQueueName(): string
+        {
+            return 'default';
+        }
 
-        public function getMetadata(): array { return []; }
+        public function getMetadata(): array
+        {
+            return [];
+        }
 
-        public function execute(HookContext $ctx): void { $this->handle($ctx); }
+        public function execute(HookContext $ctx): void
+        {
+            $this->handle($ctx);
+        }
     };
 
     $successHook = new JobsTestHook;
@@ -350,23 +376,50 @@ test('BatchProcessorJob handle continues on individual item failure', function (
             throw new RuntimeException('batch item fail');
         }
 
-        public function shouldExecute(HookContext $ctx): bool { return true; }
+        public function shouldExecute(HookContext $ctx): bool
+        {
+            return true;
+        }
 
-        public function getPriority(): int { return 100; }
+        public function getPriority(): int
+        {
+            return 100;
+        }
 
-        public function getRetryAttempts(): int { return 1; }
+        public function getRetryAttempts(): int
+        {
+            return 1;
+        }
 
-        public function getRetryDelay(): int { return 0; }
+        public function getRetryDelay(): int
+        {
+            return 0;
+        }
 
-        public function getTimeout(): int { return 30; }
+        public function getTimeout(): int
+        {
+            return 30;
+        }
 
-        public function isAsync(): bool { return false; }
+        public function isAsync(): bool
+        {
+            return false;
+        }
 
-        public function getQueueName(): string { return 'default'; }
+        public function getQueueName(): string
+        {
+            return 'default';
+        }
 
-        public function getMetadata(): array { return []; }
+        public function getMetadata(): array
+        {
+            return [];
+        }
 
-        public function execute(HookContext $ctx): void { $this->handle($ctx); }
+        public function execute(HookContext $ctx): void
+        {
+            $this->handle($ctx);
+        }
     };
 
     $successHook = new JobsTestHook;

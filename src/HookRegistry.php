@@ -140,7 +140,8 @@ class HookRegistry
             }
         }
 
-        // Filter enabled hooks and sort by priority, then specificity
+        // Filter enabled hooks and sort by priority ascending (lower = runs first),
+        // then by specificity ascending (target-specific before wildcard/global)
         $enabledHooks = array_filter($tagged, fn ($hook) => $hook['enabled']);
 
         usort($enabledHooks, function ($a, $b) {
@@ -152,7 +153,18 @@ class HookRegistry
     }
 
     /**
-     * Execute hooks for a specific context
+     * Execute hooks for a specific context.
+     *
+     * Hooks are executed in priority order (ascending). If a hook's config
+     * includes `'stop_on_failure' => true` and execution throws, the
+     * exception is re-thrown immediately, skipping remaining hooks.
+     *
+     * @param  string  $targetClass  The fully-qualified class name of the hook target
+     * @param  string  $method  The method being hooked
+     * @param  string  $phase  The hook phase ('before', 'after', or 'error')
+     * @param  HookContext  $context  The execution context passed to each hook
+     *
+     * @throws \Exception When a hook fails and its config has `stop_on_failure` enabled
      */
     public function executeHooks(string $targetClass, string $method, string $phase, HookContext $context): void
     {
@@ -392,7 +404,7 @@ class HookRegistry
     {
         if (! is_int($value) || $value < 1) {
             throw new \InvalidArgumentException(
-                "Option '{$name}' must be a positive integer, got: ".var_export($value, true)
+                "Option '{$name}' must be a positive integer, got ".get_debug_type($value)
             );
         }
     }

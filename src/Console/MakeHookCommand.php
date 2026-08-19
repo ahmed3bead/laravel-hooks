@@ -33,6 +33,13 @@ class MakeHookCommand extends Command
     public function handle(): int
     {
         $name = $this->argument('name');
+
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name)) {
+            $this->error("Invalid hook name '{$name}'. Name must be a valid PHP class name (letters, numbers, underscores; cannot start with a number).");
+
+            return 1;
+        }
+
         $type = $this->option('type');
         $methods = $this->option('method');
         $phase = $this->option('phase');
@@ -720,5 +727,4 @@ class {{ class }} extends BaseHookJob
         return true;
     }';
     }
-
 }

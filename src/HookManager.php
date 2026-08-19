@@ -438,17 +438,29 @@ class HookManager
             $modifiedContext = $middleware($modifiedContext);
 
             if (! $modifiedContext instanceof HookContext) {
-                $middlewareDesc = is_object($middleware)
-                    ? get_class($middleware)
-                    : (is_array($middleware) ? implode('::', array_map('strval', $middleware)) : 'Closure');
-
                 throw new \RuntimeException(
-                    "Middleware #{$index} ({$middlewareDesc}) must return a HookContext instance, got: ".get_debug_type($modifiedContext)
+                    "Middleware #{$index} ({$this->describeMiddleware($middleware)}) must return a HookContext instance, got: ".get_debug_type($modifiedContext)
                 );
             }
         }
 
         return $modifiedContext;
+    }
+
+    /**
+     * Get a human-readable description of a middleware callable for error messages.
+     */
+    private function describeMiddleware(mixed $middleware): string
+    {
+        if (is_object($middleware)) {
+            return get_class($middleware);
+        }
+
+        if (is_array($middleware)) {
+            return implode('::', array_map('strval', $middleware));
+        }
+
+        return 'Closure';
     }
 
     /**

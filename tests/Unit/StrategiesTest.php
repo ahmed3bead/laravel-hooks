@@ -307,3 +307,172 @@ test('ConditionalHookStrategy onlyInEnvironment works', function () {
     // In Orchestra Testbench the environment is 'testing'
     expect($hook->executed)->toHaveCount(1);
 });
+
+test('ConditionalHookStrategy onlyInEnvironment blocks wrong environment', function () {
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->onlyInEnvironment('production');
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx());
+
+    expect($hook->executed)->toBeEmpty();
+});
+
+test('ConditionalHookStrategy onlyWhenConfigEnabled works', function () {
+    config(['features.test_hook' => true]);
+
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->onlyWhenConfigEnabled('features.test_hook');
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx());
+
+    expect($hook->executed)->toHaveCount(1);
+});
+
+test('ConditionalHookStrategy onlyWhenConfigEnabled blocks when disabled', function () {
+    config(['features.disabled_hook' => false]);
+
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->onlyWhenConfigEnabled('features.disabled_hook');
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx());
+
+    expect($hook->executed)->toBeEmpty();
+});
+
+test('ConditionalHookStrategy supports multiple conditions', function () {
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->addCondition(fn () => true);
+    $strategy->addCondition(fn () => true);
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx());
+
+    expect($hook->executed)->toHaveCount(1);
+});
+
+test('ConditionalHookStrategy fails if any condition fails', function () {
+    $inner = new SyncHookStrategy;
+    $strategy = new ConditionalHookStrategy($inner);
+    $strategy->addCondition(fn () => true);
+    $strategy->addCondition(fn () => false);
+
+    $hook = new SpyHook;
+    $strategy->execute($hook, makeStrategyCtx());
+
+    expect($hook->executed)->toBeEmpty();
+});
+
+// --- SyncHookStrategy retry cap and backoff ---
+
+test('SyncHookStrategy caps retries at MAX_SYNC_RETRIES = 3', function () {
+    $strategy = new SyncHookStrategy;
+    $callCount = 0;
+
+    $hook = new class($callCount) implements HookJobInterface
+    {
+        public function __construct(private int &$count) {}
+
+        public function handle(HookContext $ctx): void
+        {
+            $this->count++;
+            throw new RuntimeException('always fails');
+        }
+
+        public function shouldExecute(HookContext $ctx): bool { return true; }
+        public function getPriority(): int { return 100; }
+        public function getRetryAttempts(): int { return 10; } // Requests 10 but should be capped at 3
+        public function getRetryDelay(): int { return 0; }
+        public function getTimeout(): int { return 30; }
+        public function isAsync(): bool { return false; }
+        public function getQueueName(): string { return 'default'; }
+        public function getMetadata(): array { return []; }
+        public function execute(HookContext $ctx): void { $this->handle($ctx); }
+    };
+
+    try {
+        $strategy->execute($hook, makeStrategyCtx());
+    } catch (RuntimeException) {
+        // Expected
+    }
+
+    // Should be capped at 3 (MAX_SYNC_RETRIES), not 10
+    expect($callCount)->toBe(3);
+});
+
+test('SyncHookStrategy uses hook retry attempts when less than cap', function () {
+    $strategy = new SyncHookStrategy;
+    $callCount = 0;
+
+    $hook = new class($callCount) implements HookJobInterface
+    {
+        public function __construct(private int &$count) {}
+
+        public function handle(HookContext $ctx): void
+        {
+            $this->count++;
+            throw new RuntimeException('always fails');
+        }
+
+        public function shouldExecute(HookContext $ctx): bool { return true; }
+        public function getPriority(): int { return 100; }
+        public function getRetryAttempts(): int { return 2; } // Less than cap of 3
+        public function getRetryDelay(): int { return 0; }
+        public function getTimeout(): int { return 30; }
+        public function isAsync(): bool { return false; }
+        public function getQueueName(): string { return 'default'; }
+        public function getMetadata(): array { return []; }
+        public function execute(HookContext $ctx): void { $this->handle($ctx); }
+    };
+
+    try {
+        $strategy->execute($hook, makeStrategyCtx());
+    } catch (RuntimeException) {
+        // Expected
+    }
+
+    expect($callCount)->toBe(2);
+});
+
+// --- BatchedHookStrategy edge cases ---
+
+test('BatchedHookStrategy makeCacheKey returns deterministic sha256 hash', function () {
+    $key1 = BatchedHookStrategy::makeCacheKey('test_key');
+    $key2 = BatchedHookStrategy::makeCacheKey('test_key');
+    $key3 = BatchedHookStrategy::makeCacheKey('different_key');
+
+    expect($key1)->toBe($key2)
+        ->and($key1)->not->toBe($key3)
+        ->and($key1)->toStartWith('laravel-hooks:batch:');
+});
+
+test('BatchedHookStrategy processNow does nothing for empty batch', function () {
+    Queue::fake();
+
+    BatchedHookStrategy::processNow('nonexistent_batch_key');
+
+    Queue::assertNothingPushed();
+});
+
+// --- DelayedHookStrategy ---
+
+test('DelayedHookStrategy defaults to 30 second delay', function () {
+    $strategy = new DelayedHookStrategy;
+    expect($strategy->getDelay())->toBe(30);
+});
+
+test('DelayedHookStrategy supportsRetry returns true', function () {
+    expect((new DelayedHookStrategy)->supportsRetry())->toBeTrue();
+});
+
+// --- QueuedHookStrategy ---
+
+test('QueuedHookStrategy supportsRetry returns true', function () {
+    expect((new QueuedHookStrategy)->supportsRetry())->toBeTrue();
+});

@@ -298,3 +298,169 @@ test('hookWithLogic fires inline callbacks for before and after', function () {
 
     expect($log)->toBe(['before:before', 'after:after']);
 });
+
+// --- hookWithLogic closure sync-only guard ---
+
+test('hookWithLogic throws when strategy is not sync', function () {
+    $service = new TraitTestService;
+
+    expect(fn () => $service->hookWithLogic('after', 'create', function ($ctx) {}, 'queue'))
+        ->toThrow(InvalidArgumentException::class, "Closure hooks only support the 'sync' strategy");
+});
+
+test('hookWithLogic throws for delay strategy', function () {
+    $service = new TraitTestService;
+
+    expect(fn () => $service->hookWithLogic('after', 'create', function ($ctx) {}, 'delay'))
+        ->toThrow(InvalidArgumentException::class, "Closure hooks only support the 'sync' strategy");
+});
+
+test('hookWithLogic throws for batch strategy', function () {
+    $service = new TraitTestService;
+
+    expect(fn () => $service->hookWithLogic('after', 'create', function ($ctx) {}, 'batch'))
+        ->toThrow(InvalidArgumentException::class, "Closure hooks only support the 'sync' strategy");
+});
+
+// --- Public API shortcut methods ---
+
+test('beforeHook registers a before hook', function () {
+    $service = new TraitTestService;
+    $service->beforeHook('create', TraitTestHook::class);
+
+    $service->create();
+
+    expect(TraitTestHook::$calls)->toHaveCount(1)
+        ->and(TraitTestHook::$calls[0]['phase'])->toBe('before');
+});
+
+test('afterHook registers an after hook', function () {
+    $service = new TraitTestService;
+    $service->afterHook('create', TraitTestHook::class);
+
+    $service->create();
+
+    expect(TraitTestHook::$calls)->toHaveCount(1)
+        ->and(TraitTestHook::$calls[0]['phase'])->toBe('after');
+});
+
+test('errorHook registers an error hook', function () {
+    $service = new TraitTestService;
+    $service->errorHook('fail', TraitTestHook::class);
+
+    expect(fn () => $service->fail())->toThrow(RuntimeException::class);
+
+    expect(TraitTestHook::$calls)->toHaveCount(1)
+        ->and(TraitTestHook::$calls[0]['phase'])->toBe('error');
+});
+
+test('hook method registers with custom strategy', function () {
+    $service = new TraitTestService;
+    $service->hook('after', 'create', TraitTestHook::class, 'sync');
+
+    $stats = $service->stats();
+    expect($stats['total_target_hooks'])->toBe(1);
+});
+
+// --- safeExecuteHooks ---
+
+test('safeExecuteHooks does not throw on hook failure', function () {
+    $service = new class
+    {
+        use \Ahmed3bead\LaravelHooks\HookableTrait;
+
+        public function doSafe(): void
+        {
+            $this->safeExecuteHooks('create', 'after', null, [], null);
+        }
+    };
+
+    $failingClass = 'SafeFailHook_'.uniqid();
+    eval("
+        class {$failingClass} implements ".Ahmed3bead\LaravelHooks\Contracts\HookJobInterface::class.' {
+            public function handle('.Ahmed3bead\LaravelHooks\HookContext::class.' $ctx): void { throw new RuntimeException("safe fail"); }
+            public function shouldExecute('.Ahmed3bead\LaravelHooks\HookContext::class.' $ctx): bool { return true; }
+            public function getPriority(): int { return 100; }
+            public function getRetryAttempts(): int { return 1; }
+            public function getRetryDelay(): int { return 0; }
+            public function getTimeout(): int { return 30; }
+            public function isAsync(): bool { return false; }
+            public function getQueueName(): string { return "default"; }
+            public function getMetadata(): array { return []; }
+            public function execute('.Ahmed3bead\LaravelHooks\HookContext::class.' $ctx): void { $this->handle($ctx); }
+        }
+    ');
+
+    $manager = app(\Ahmed3bead\LaravelHooks\HookManager::class);
+    $manager->addSyncHook(get_class($service), 'create', 'after', $failingClass, ['stop_on_failure' => true]);
+
+    // Should not throw
+    $service->doSafe();
+    expect(true)->toBeTrue();
+});
+
+// --- methodSupportsHooks with restricted methods ---
+
+test('methodSupportsHooks returns false for unlisted methods', function () {
+    $service = new class
+    {
+        use \Ahmed3bead\LaravelHooks\HookableTrait;
+
+        public function __construct()
+        {
+            $this->hookableMethods = ['create', 'update'];
+        }
+
+        public function checkMethod(string $method): bool
+        {
+            return $this->methodSupportsHooks($method);
+        }
+    };
+
+    expect($service->checkMethod('create'))->toBeTrue()
+        ->and($service->checkMethod('delete'))->toBeFalse();
+});
+
+// --- getHookMetadata PII gating ---
+
+test('getHookMetadata excludes request metadata by default', function () {
+    config(['laravel-hooks.include_request_metadata' => false]);
+
+    $service = new class
+    {
+        use \Ahmed3bead\LaravelHooks\HookableTrait;
+
+        public function exposeMeta(): array
+        {
+            return $this->getHookMetadata('create', 'after');
+        }
+    };
+
+    $meta = $service->exposeMeta();
+    expect($meta)->toHaveKey('target_class')
+        ->and($meta)->toHaveKey('timestamp')
+        ->and($meta)->not->toHaveKey('ip_address')
+        ->and($meta)->not->toHaveKey('user_agent')
+        ->and($meta)->not->toHaveKey('request_id');
+});
+
+test('getHookMetadata includes request metadata when enabled', function () {
+    config(['laravel-hooks.include_request_metadata' => true]);
+
+    $service = new class
+    {
+        use \Ahmed3bead\LaravelHooks\HookableTrait;
+
+        public function exposeMeta(): array
+        {
+            return $this->getHookMetadata('create', 'after');
+        }
+    };
+
+    $meta = $service->exposeMeta();
+    expect($meta)->toHaveKey('ip_address')
+        ->and($meta)->toHaveKey('user_agent')
+        ->and($meta)->toHaveKey('request_id');
+
+    config(['laravel-hooks.include_request_metadata' => false]);
+});

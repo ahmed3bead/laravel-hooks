@@ -135,3 +135,189 @@ test('getMetadata includes class, priority, async, queue', function () {
         ->and($meta)->toHaveKey('async')
         ->and($meta)->toHaveKey('queue');
 });
+
+// --- handleError ---
+
+test('handleError logs error with context', function () {
+    $hook = new ConcreteHookJob;
+    $hook->shouldFail = true;
+
+    \Illuminate\Support\Facades\Log::shouldReceive('error')
+        ->once()
+        ->withArgs(function ($message, $data) {
+            return $message === 'Hook execution failed'
+                && isset($data['hook'])
+                && isset($data['error'])
+                && isset($data['context'])
+                && ! isset($data['trace']); // trace only in debug mode
+        });
+
+    expect(fn () => $hook->execute(makeCtx()))->toThrow(RuntimeException::class);
+});
+
+test('handleError includes trace when debug mode is enabled', function () {
+    config(['laravel-hooks.debug' => true]);
+
+    $hook = new ConcreteHookJob;
+    $hook->shouldFail = true;
+
+    \Illuminate\Support\Facades\Log::shouldReceive('error')
+        ->once()
+        ->withArgs(function ($message, $data) {
+            return $message === 'Hook execution failed'
+                && isset($data['trace']);
+        });
+
+    expect(fn () => $hook->execute(makeCtx()))->toThrow(RuntimeException::class);
+
+    config(['laravel-hooks.debug' => false]);
+});
+
+// --- Config setters ---
+
+test('setPriority changes priority', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposePriority(int $p): static
+        {
+            return $this->setPriority($p);
+        }
+    };
+
+    $hook->exposePriority(50);
+    expect($hook->getPriority())->toBe(50);
+});
+
+test('setRetryConfig changes retry attempts and delay', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposeRetryConfig(int $attempts, int $delay): static
+        {
+            return $this->setRetryConfig($attempts, $delay);
+        }
+    };
+
+    $hook->exposeRetryConfig(5, 60);
+    expect($hook->getRetryAttempts())->toBe(5)
+        ->and($hook->getRetryDelay())->toBe(60);
+});
+
+test('setTimeout changes timeout', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposeTimeout(int $t): static
+        {
+            return $this->setTimeout($t);
+        }
+    };
+
+    $hook->exposeTimeout(120);
+    expect($hook->getTimeout())->toBe(120);
+});
+
+test('setAsync changes async and queue name', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposeAsync(bool $async, string $queue): static
+        {
+            return $this->setAsync($async, $queue);
+        }
+    };
+
+    $hook->exposeAsync(true, 'high-priority');
+    expect($hook->isAsync())->toBeTrue()
+        ->and($hook->getQueueName())->toBe('high-priority');
+});
+
+test('addMetadata adds to metadata', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposeMeta(string $key, mixed $value): static
+        {
+            return $this->addMetadata($key, $value);
+        }
+    };
+
+    $hook->exposeMeta('custom_key', 'custom_value');
+    $meta = $hook->getMetadata();
+    expect($meta['custom_key'])->toBe('custom_value');
+});
+
+// --- Condition helpers ---
+
+test('onlyForUser condition works', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposeOnlyForUser(callable $condition): static
+        {
+            return $this->onlyForUser($condition);
+        }
+    };
+
+    $hook->exposeOnlyForUser(fn ($user) => $user->role === 'admin');
+
+    // No user
+    $ctxNoUser = new HookContext('create', 'after', null, [], null, new stdClass);
+    expect($hook->shouldExecute($ctxNoUser))->toBeFalse();
+
+    // Admin user
+    $adminUser = new stdClass;
+    $adminUser->id = 1;
+    $adminUser->role = 'admin';
+    $ctxAdmin = new HookContext('create', 'after', null, [], null, new stdClass, null, $adminUser);
+    expect($hook->shouldExecute($ctxAdmin))->toBeTrue();
+
+    // Non-admin user
+    $regularUser = new stdClass;
+    $regularUser->id = 2;
+    $regularUser->role = 'user';
+    $ctxRegular = new HookContext('create', 'after', null, [], null, new stdClass, null, $regularUser);
+    expect($hook->shouldExecute($ctxRegular))->toBeFalse();
+});
+
+test('onlyForModel condition works', function () {
+    $hook = new class extends \Ahmed3bead\LaravelHooks\BaseHookJob
+    {
+        public function handle(HookContext $context): void {}
+
+        public function exposeOnlyForModel(string $class): static
+        {
+            return $this->onlyForModel($class);
+        }
+    };
+
+    $hook->exposeOnlyForModel(\Illuminate\Database\Eloquent\Model::class);
+
+    $model = new class extends \Illuminate\Database\Eloquent\Model
+    {
+        protected $guarded = [];
+    };
+
+    $ctxWithModel = new HookContext('create', 'after', null, [], null, new stdClass, $model);
+    expect($hook->shouldExecute($ctxWithModel))->toBeTrue();
+
+    $ctxNoModel = new HookContext('create', 'after', null, [], null, new stdClass);
+    expect($hook->shouldExecute($ctxNoModel))->toBeFalse();
+});
+
+test('default retry delay is 30', function () {
+    $hook = new ConcreteHookJob;
+    expect($hook->getRetryDelay())->toBe(30);
+});
+
+test('default timeout is 300', function () {
+    $hook = new ConcreteHookJob;
+    expect($hook->getTimeout())->toBe(300);
+});

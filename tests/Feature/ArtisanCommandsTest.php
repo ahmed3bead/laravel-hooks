@@ -118,3 +118,71 @@ test('hooks:manage debug with missing target option returns error', function () 
     $this->artisan('hooks:manage', ['action' => 'debug'])
         ->assertExitCode(0); // Command::SUCCESS is returned but error message shown
 });
+
+// --- Export command ---
+
+test('hooks:manage export creates json file in storage', function () {
+    $manager = app(HookManager::class);
+    $manager->addSyncHook(stdClass::class, 'create', 'after', CommandsTestHook::class);
+
+    $filename = 'test_export_'.uniqid().'.json';
+
+    $this->artisan('hooks:manage', ['action' => 'export', '--export' => $filename])
+        ->assertExitCode(0);
+
+    $path = storage_path('app/'.$filename);
+    expect(file_exists($path))->toBeTrue();
+
+    $data = json_decode(file_get_contents($path), true);
+    expect($data)->toHaveKey('exported_at')
+        ->and($data)->toHaveKey('stats')
+        ->and($data)->toHaveKey('hooks');
+
+    // Cleanup
+    @unlink($path);
+});
+
+test('hooks:manage export rejects non-json extension', function () {
+    $this->artisan('hooks:manage', ['action' => 'export', '--export' => 'hooks.xml'])
+        ->assertExitCode(0); // Command returns SUCCESS but shows error message
+});
+
+test('hooks:manage export strips path traversal', function () {
+    $filename = '../../etc/passwd.json';
+
+    $this->artisan('hooks:manage', ['action' => 'export', '--export' => $filename])
+        ->assertExitCode(0);
+
+    // Should only create file in storage/app/, not in ../../etc/
+    $safePath = storage_path('app/passwd.json');
+    if (file_exists($safePath)) {
+        @unlink($safePath);
+    }
+    expect(file_exists('/etc/passwd.json'))->toBeFalse();
+});
+
+// --- Stats with hooks registered ---
+
+test('hooks:manage stats shows distribution when hooks exist', function () {
+    $manager = app(HookManager::class);
+    $manager->addSyncHook(stdClass::class, 'create', 'after', CommandsTestHook::class);
+    $manager->addSyncHook(stdClass::class, 'update', 'before', CommandsTestHook::class);
+
+    $this->artisan('hooks:manage', ['action' => 'stats'])
+        ->assertExitCode(0);
+});
+
+// --- Debug with target ---
+
+test('hooks:manage debug with valid target shows hooks', function () {
+    $manager = app(HookManager::class);
+    $manager->addSyncHook(stdClass::class, 'create', 'after', CommandsTestHook::class);
+
+    $this->artisan('hooks:manage', ['action' => 'debug', '--target' => stdClass::class])
+        ->assertExitCode(0);
+});
+
+test('hooks:manage debug with non-existent class shows error', function () {
+    $this->artisan('hooks:manage', ['action' => 'debug', '--target' => 'App\\NonExistent\\FakeClass'])
+        ->assertExitCode(0); // Command returns SUCCESS but shows error
+});

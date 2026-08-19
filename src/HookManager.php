@@ -400,14 +400,17 @@ class HookManager
 
     /**
      * Validate execution strategy
+     *
+     * Checks against both the built-in strategies and any custom
+     * strategies registered via registerStrategy().
      */
     private function validateStrategy(string $strategy): void
     {
-        $validStrategies = ['sync', 'queue', 'delay', 'batch'];
+        $registeredStrategies = $this->registry->getStats()['registered_strategies'];
 
-        if (! in_array($strategy, $validStrategies)) {
+        if (! in_array($strategy, $registeredStrategies)) {
             throw new \InvalidArgumentException(
-                "Invalid hook strategy: {$strategy}. Must be one of: ".implode(', ', $validStrategies)
+                "Invalid hook strategy: {$strategy}. Must be one of: ".implode(', ', $registeredStrategies)
             );
         }
     }

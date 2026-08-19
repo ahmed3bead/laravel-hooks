@@ -3,6 +3,7 @@
 namespace Ahmed3bead\LaravelHooks;
 
 use Ahmed3bead\LaravelHooks\Contracts\HookJobInterface;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Closure Hook Job
@@ -67,6 +68,14 @@ class ClosureHookJob implements HookJobInterface
 
     public function execute(HookContext $context): void
     {
-        $this->handle($context);
+        try {
+            $this->handle($context);
+        } catch (\Exception $e) {
+            Log::error('Closure hook execution failed', [
+                'error' => $e->getMessage(),
+                'context' => $context->toArray(),
+            ]);
+            throw $e;
+        }
     }
 }

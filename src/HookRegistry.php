@@ -71,9 +71,6 @@ class HookRegistry
 
         $this->hooks[$key][] = $hookConfig;
 
-        // Sort by priority after adding
-        $this->sortHooksByPriority($key);
-
         Log::debug('Hook registered', [
             'target' => $targetClass,
             'method' => $method,
@@ -110,7 +107,6 @@ class HookRegistry
         ];
 
         $this->globalHooks[$key][] = $hookConfig;
-        $this->sortGlobalHooksByPriority($key);
 
         return $this;
     }
@@ -129,17 +125,28 @@ class HookRegistry
         $allMethodsKey = $this->makeKey($targetClass, '*', $phase);
         $allGlobalKey = $this->makeKey('*', '*', $phase);
 
-        $hooks = array_merge(
-            $this->globalHooks[$globalKey] ?? [],
-            $this->globalHooks[$allGlobalKey] ?? [],
-            $this->hooks[$allMethodsKey] ?? [],
-            $this->hooks[$specificKey] ?? []
-        );
+        // Tag each hook with a specificity weight so that, at equal priority,
+        // target-specific hooks run before wildcard/global hooks.
+        $tagged = [];
+        foreach ([
+            [$this->hooks[$specificKey] ?? [], 0],
+            [$this->hooks[$allMethodsKey] ?? [], 1],
+            [$this->globalHooks[$globalKey] ?? [], 2],
+            [$this->globalHooks[$allGlobalKey] ?? [], 3],
+        ] as [$group, $specificity]) {
+            foreach ($group as $hook) {
+                $hook['_specificity'] = $specificity;
+                $tagged[] = $hook;
+            }
+        }
 
-        // Filter enabled hooks and sort by priority
-        $enabledHooks = array_filter($hooks, fn ($hook) => $hook['enabled']);
+        // Filter enabled hooks and sort by priority, then specificity
+        $enabledHooks = array_filter($tagged, fn ($hook) => $hook['enabled']);
 
-        usort($enabledHooks, fn ($a, $b) => $a['priority'] <=> $b['priority']);
+        usort($enabledHooks, function ($a, $b) {
+            return $a['priority'] <=> $b['priority']
+                ?: $a['_specificity'] <=> $b['_specificity'];
+        });
 
         return $enabledHooks;
     }
@@ -220,6 +227,9 @@ class HookRegistry
 
     /**
      * Get execution strategy instance
+     *
+     * Clones mutable strategies before configuring to prevent
+     * cross-request state bleed from shared singleton instances.
      */
     private function getStrategy(string $strategyName, array $options): HookExecutionStrategy
     {
@@ -229,20 +239,33 @@ class HookRegistry
 
         $strategy = $this->strategies[$strategyName];
 
-        // Configure strategy with options
+        // Configure strategy with options — clone first to avoid mutating the shared instance
         if ($strategy instanceof DelayedHookStrategy && isset($options['delay'])) {
+            $this->validatePositiveInt($options['delay'], 'delay');
+            $strategy = clone $strategy;
             $strategy->setDelay($options['delay']);
         }
 
         if ($strategy instanceof BatchedHookStrategy) {
             if (isset($options['batch_size'])) {
-                $strategy->setBatchSize($options['batch_size']);
+                $this->validatePositiveInt($options['batch_size'], 'batch_size');
             }
             if (isset($options['batch_delay'])) {
-                $strategy->setBatchDelay($options['batch_delay']);
+                $this->validatePositiveInt($options['batch_delay'], 'batch_delay');
             }
-            if (isset($options['batch_key'])) {
-                $strategy->setBatchKey($options['batch_key']);
+
+            $needsClone = isset($options['batch_size']) || isset($options['batch_delay']) || isset($options['batch_key']);
+            if ($needsClone) {
+                $strategy = clone $strategy;
+                if (isset($options['batch_size'])) {
+                    $strategy->setBatchSize($options['batch_size']);
+                }
+                if (isset($options['batch_delay'])) {
+                    $strategy->setBatchDelay($options['batch_delay']);
+                }
+                if (isset($options['batch_key'])) {
+                    $strategy->setBatchKey($options['batch_key']);
+                }
             }
         }
 
@@ -347,31 +370,23 @@ class HookRegistry
     }
 
     /**
+     * Validate that a value is a positive integer.
+     */
+    private function validatePositiveInt(mixed $value, string $name): void
+    {
+        if (! is_int($value) || $value < 1) {
+            throw new \InvalidArgumentException(
+                "Option '{$name}' must be a positive integer, got: ".var_export($value, true)
+            );
+        }
+    }
+
+    /**
      * Create a unique key for hook storage
      */
     private function makeKey(string $targetClass, string $method, string $phase): string
     {
         return "{$targetClass}::{$method}::{$phase}";
-    }
-
-    /**
-     * Sort hooks by priority
-     */
-    private function sortHooksByPriority(string $key): void
-    {
-        if (isset($this->hooks[$key])) {
-            usort($this->hooks[$key], fn ($a, $b) => $a['priority'] <=> $b['priority']);
-        }
-    }
-
-    /**
-     * Sort global hooks by priority
-     */
-    private function sortGlobalHooksByPriority(string $key): void
-    {
-        if (isset($this->globalHooks[$key])) {
-            usort($this->globalHooks[$key], fn ($a, $b) => $a['priority'] <=> $b['priority']);
-        }
     }
 
     /**

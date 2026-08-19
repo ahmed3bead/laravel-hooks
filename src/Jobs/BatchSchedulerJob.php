@@ -7,12 +7,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Ahmed3bead\LaravelHooks\Strategies\BatchedHookStrategy;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Batch Scheduler Job
  *
- * Schedules the processing of batches after a delay
+ * Processes a pending batch after the configured delay has elapsed.
+ * Retrieves the batch from cache and dispatches a BatchProcessorJob.
  */
 class BatchSchedulerJob implements ShouldQueue
 {
@@ -30,22 +32,16 @@ class BatchSchedulerJob implements ShouldQueue
     }
 
     /**
-     * Execute the scheduler
+     * Execute the scheduler — pull the batch from cache and process it.
      */
     public function handle(): void
     {
-        // This job triggers the processing of a specific batch
-        // The actual implementation would depend on how you store batches
-        // For now, we'll just log the scheduling
-        Log::info('Batch scheduler triggered', [
+        Log::debug('Batch scheduler triggered', [
             'batch_key' => $this->batchKey,
             'delay' => $this->delay,
         ]);
 
-        // In a real implementation, you would:
-        // 1. Check if the batch still exists
-        // 2. Process it if it does
-        // 3. Clean up the batch storage
+        BatchedHookStrategy::processNow($this->batchKey);
     }
 
     /**

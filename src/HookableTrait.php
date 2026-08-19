@@ -486,12 +486,17 @@ trait HookableTrait
         try {
             $this->getHookManager()->executeHooks($context);
         } catch (\Exception $hookError) {
-            Log::error('Error hook execution failed', [
+            // Log at critical level — a failure in the error-handling layer
+            // should never go unnoticed.
+            Log::critical('Error hook execution failed', [
                 'target' => static::class,
                 'method' => $method,
                 'original_error' => $error?->getMessage(),
                 'hook_error' => $hookError->getMessage(),
+                'hook_error_trace' => $hookError->getTraceAsString(),
             ]);
+
+            report($hookError);
         }
     }
 

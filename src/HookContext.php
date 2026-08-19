@@ -185,19 +185,21 @@ class HookContext
      */
     public function toArray(): array
     {
+        $extractedModel = $this->getModelFromResult();
+
         return [
             'method' => $this->method,
             'phase' => $this->phase,
             'data' => $this->data,
             'request_data' => request()?->all() ?? [],
             'parameters' => $this->parameters,
-            'result_type' => $this->result ? get_class($this->result) : null,
+            'result_type' => $this->result !== null ? get_debug_type($this->result) : null,
             'has_wrapped_response' => $this->hasWrappedResponse(),
             'status_code' => $this->getStatusCode(),
             'message' => $this->getMessage(),
             'target' => get_class($this->target),
             'model' => $this->model ? get_class($this->model) : null,
-            'extracted_model' => $this->getModelFromResult() ? get_class($this->getModelFromResult()) : null,
+            'extracted_model' => $extractedModel ? get_class($extractedModel) : null,
             'user' => $this->user ? get_class($this->user) : null,
             'metadata' => $this->metadata,
         ];

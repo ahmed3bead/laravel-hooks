@@ -196,24 +196,12 @@ class MakeHookCommand extends Command
 
     protected function getBuiltInStub(string $type): string
     {
-        switch ($type) {
-            case 'audit':
-                return $this->getAuditStub();
-            case 'notification':
-                return $this->getNotificationStub();
-            case 'cache':
-                return $this->getCacheStub();
-            case 'logging':
-                return $this->getLoggingStub();
-            case 'validation':
-                return $this->getValidationStub();
-            case 'security':
-                return $this->getSecurityStub();
-            case 'analytics':
-                return $this->getAnalyticsStub();
-            default:
-                return $this->getBaseStub();
-        }
+        return match ($type) {
+            'audit' => $this->getAuditStub(),
+            'notification' => $this->getNotificationStub(),
+            'analytics' => $this->getAnalyticsStub(),
+            default => $this->getBaseStub(),
+        };
     }
 
     protected function populateStub(string $stub, array $replacements): string
@@ -733,24 +721,4 @@ class {{ class }} extends BaseHookJob
     }';
     }
 
-    // Placeholder methods for other stubs - implement similar to above
-    protected function getCacheStub(): string
-    {
-        return $this->getBaseStub();
-    }
-
-    protected function getLoggingStub(): string
-    {
-        return $this->getBaseStub();
-    }
-
-    protected function getValidationStub(): string
-    {
-        return $this->getBaseStub();
-    }
-
-    protected function getSecurityStub(): string
-    {
-        return $this->getBaseStub();
-    }
 }

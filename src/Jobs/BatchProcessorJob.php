@@ -42,7 +42,7 @@ class BatchProcessorJob implements ShouldQueue
 
         foreach ($this->batch as $item) {
             try {
-                $hook = $item['hook'];
+                $hook = $this->resolveHook($item);
                 $context = $item['context'];
 
                 if ($hook->shouldExecute($context)) {
@@ -57,7 +57,7 @@ class BatchProcessorJob implements ShouldQueue
             } catch (\Exception $e) {
                 $failed++;
                 Log::error('Batched hook execution failed', [
-                    'hook' => get_class($item['hook']),
+                    'hook' => $item['hook_class'] ?? get_class($item['hook'] ?? new \stdClass),
                     'context' => $item['context']->toArray(),
                     'error' => $e->getMessage(),
                 ]);
@@ -69,6 +69,23 @@ class BatchProcessorJob implements ShouldQueue
             'successful' => $successful,
             'failed' => $failed,
         ]);
+    }
+
+    /**
+     * Resolve a hook instance from a batch item.
+     *
+     * Supports both cache-backed format (hook_class string) and
+     * legacy in-memory format (hook object).
+     */
+    private function resolveHook(array $item): \Ahmed3bead\LaravelHooks\Contracts\HookJobInterface
+    {
+        // Cache-backed format: class name stored as string
+        if (isset($item['hook_class'])) {
+            return app($item['hook_class']);
+        }
+
+        // Legacy format: pre-instantiated hook object
+        return $item['hook'];
     }
 
     /**

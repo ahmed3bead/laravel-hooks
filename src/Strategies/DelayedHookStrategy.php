@@ -31,7 +31,7 @@ class DelayedHookStrategy implements HookExecutionStrategy
     {
         $job = new QueuedHookJob($hook, $context);
 
-        Queue::connection(config('laravel-hooks.queue_connection', 'default'))
+        Queue::connection(config('laravel-hooks.queue_connection', null))
             ->laterOn($hook->getQueueName(), $this->delay, $job);
     }
 

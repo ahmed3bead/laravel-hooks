@@ -9,6 +9,7 @@ use Ahmed3bead\LaravelHooks\Strategies\ConditionalHookStrategy;
 use Ahmed3bead\LaravelHooks\Strategies\DelayedHookStrategy;
 use Ahmed3bead\LaravelHooks\Strategies\QueuedHookStrategy;
 use Ahmed3bead\LaravelHooks\Strategies\SyncHookStrategy;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 
 // Spy hook for strategy tests
@@ -240,9 +241,13 @@ test('BatchedHookStrategy flushBatches dispatches remaining items', function () 
 
     $strategy = new BatchedHookStrategy(batchSize: 100);
     $hook = new SpyHook;
+    $ctx = makeStrategyCtx();
 
-    $strategy->execute($hook, makeStrategyCtx());
-    BatchedHookStrategy::flushBatches();
+    $strategy->execute($hook, $ctx);
+
+    // Build the batch key the same way the strategy does internally
+    $batchKey = 'default_'.SpyHook::class.'_'.$ctx->method;
+    BatchedHookStrategy::flushBatches([$batchKey]);
 
     Queue::assertPushed(BatchProcessorJob::class);
 });

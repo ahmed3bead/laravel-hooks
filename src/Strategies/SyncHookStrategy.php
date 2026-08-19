@@ -24,6 +24,11 @@ class SyncHookStrategy implements HookExecutionStrategy
         return true;
     }
 
+    /**
+     * Maximum retry wait in seconds to prevent blocking requests too long.
+     */
+    private const MAX_RETRY_WAIT_SECONDS = 5;
+
     public function execute(HookJobInterface $hook, HookContext $context): void
     {
         $attempts = 0;
@@ -51,8 +56,12 @@ class SyncHookStrategy implements HookExecutionStrategy
                     throw $e;
                 }
 
-                // Wait before retry
-                sleep($hook->getRetryDelay());
+                // Exponential backoff: base delay * 2^(attempt-1), capped
+                $baseDelay = $hook->getRetryDelay();
+                $backoff = min($baseDelay * (2 ** ($attempts - 1)), self::MAX_RETRY_WAIT_SECONDS);
+                if ($backoff > 0) {
+                    usleep((int) ($backoff * 1_000_000));
+                }
             }
         }
     }

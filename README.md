@@ -163,11 +163,13 @@ $this->syncHookWithLogic('after', 'create', function (HookContext $ctx) {
 $this->hook('after', 'create', MyHook::class, strategy: 'queue');
 $this->hook('after', 'create', MyHook::class, strategy: 'delay', options: ['delay' => 300]);
 
-// Inline closure with any strategy
+// Inline closure (sync only — closures cannot be serialized for async strategies)
 $this->hookWithLogic('after', 'create', function (HookContext $ctx) {
-    // runs in the background
-}, strategy: 'queue');
+    Log::info('Order created', ['id' => $ctx->getModelId()]);
+});
 ```
+
+> **Note:** Closure hooks (`hookWithLogic` / `syncHookWithLogic`) only support the `sync` strategy. Closures cannot be serialized for queue, delay, or batch execution. For async strategies, create a named hook class implementing `HookJobInterface`.
 
 ### From outside the class (HookManager)
 
@@ -431,6 +433,7 @@ php artisan hooks:manage export --export=hooks.json
 | `queue_connection` | `null` | Queue connection for async hooks (`null` = default) |
 | `default_queue` | `'default'` | Queue name for queued/delayed hooks |
 | `batch_queue` | `'batch'` | Queue name for batched hooks |
+| `include_request_metadata` | `false` | Include IP address, user agent, and request ID in hook metadata (PII — opt-in) |
 | `generation_directory` | `'App\\Hooks'` | Namespace for generated hook classes |
 
 Environment variables:
@@ -441,6 +444,7 @@ LARAVEL_HOOKS_DEBUG=false
 LARAVEL_HOOKS_QUEUE_CONNECTION=redis
 LARAVEL_HOOKS_DEFAULT_QUEUE=default
 LARAVEL_HOOKS_BATCH_QUEUE=batch
+LARAVEL_HOOKS_INCLUDE_REQUEST_METADATA=false
 ```
 
 ---
@@ -488,6 +492,39 @@ Queue::assertPushed(QueuedHookJob::class);
 | `service_hooks` array key | `target_hooks` |
 
 All old names still work but emit `E_USER_DEPRECATED`. Update at your own pace.
+
+---
+
+## Security
+
+### Safe logging
+
+`HookContext` provides two serialization methods:
+
+- `toArray()` — includes raw `data` and `parameters`. Use only for debugging in development.
+- `toLogArray()` — excludes sensitive fields. **Always use this for log output** to prevent leaking passwords, tokens, or PII into log files.
+
+All internal log calls use `toLogArray()`. Stack traces are only included in logs when `debug` mode is enabled.
+
+### Request metadata (PII)
+
+By default, hook metadata does **not** include IP address, user agent, or request ID. Set `include_request_metadata` to `true` only if your application's privacy policy permits it:
+
+```env
+LARAVEL_HOOKS_INCLUDE_REQUEST_METADATA=true
+```
+
+### Closure hooks
+
+Closure-based hooks (`hookWithLogic()`, `syncHookWithLogic()`) are restricted to the `sync` strategy. Attempting to use `queue`, `delay`, or `batch` will throw an `InvalidArgumentException`. This prevents PHP serialization failures at runtime.
+
+### Export path
+
+The `hooks:manage export` command restricts output to `storage/app/` and requires a `.json` extension to prevent path traversal.
+
+### Debug output
+
+`getStats()` and `debugTarget()` expose internal class names and hook configuration. Never expose their output in public API responses or user-facing endpoints.
 
 ---
 

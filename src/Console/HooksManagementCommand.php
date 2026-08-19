@@ -331,7 +331,18 @@ class HooksManagementCommand extends Command
      */
     private function exportHooks(HookManager $hookManager): void
     {
-        $exportFile = $this->option('export') ?: 'hooks_export_'.date('Y-m-d_H-i-s').'.json';
+        $requestedFile = $this->option('export') ?: 'hooks_export_'.date('Y-m-d_H-i-s').'.json';
+
+        // Restrict to filename only — prevent path traversal
+        $filename = basename($requestedFile);
+
+        if (! str_ends_with($filename, '.json')) {
+            $this->error('Export file must have a .json extension.');
+
+            return;
+        }
+
+        $exportFile = storage_path('app/'.$filename);
 
         $data = [
             'exported_at' => now()->toISOString(),
@@ -340,6 +351,7 @@ class HooksManagementCommand extends Command
         ];
 
         try {
+            File::ensureDirectoryExists(storage_path('app'));
             File::put($exportFile, json_encode($data, JSON_PRETTY_PRINT));
             $this->info("Hooks exported to: {$exportFile}");
         } catch (\Exception $e) {

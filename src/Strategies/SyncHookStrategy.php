@@ -29,10 +29,15 @@ class SyncHookStrategy implements HookExecutionStrategy
      */
     private const MAX_RETRY_WAIT_SECONDS = 5;
 
+    /**
+     * Hard cap on sync retries to prevent request-blocking DoS.
+     */
+    private const MAX_SYNC_RETRIES = 3;
+
     public function execute(HookJobInterface $hook, HookContext $context): void
     {
         $attempts = 0;
-        $maxAttempts = $hook->getRetryAttempts();
+        $maxAttempts = min($hook->getRetryAttempts(), self::MAX_SYNC_RETRIES);
 
         while ($attempts < $maxAttempts) {
             try {
@@ -50,7 +55,7 @@ class SyncHookStrategy implements HookExecutionStrategy
                     Log::error('Sync hook execution failed after retries', [
                         'hook' => get_class($hook),
                         'attempts' => $attempts,
-                        'context' => $context->toArray(),
+                        'context' => $context->toLogArray(),
                         'error' => $e->getMessage(),
                     ]);
                     throw $e;

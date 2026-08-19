@@ -26,8 +26,9 @@ class BatchSchedulerJob implements ShouldQueue
 
     public function __construct(
         private string $batchKey,
-        public $delay
+        int $batchDelay
     ) {
+        $this->delay = $batchDelay;
         $this->onQueue(config('laravel-hooks.batch_queue', 'batch'));
     }
 

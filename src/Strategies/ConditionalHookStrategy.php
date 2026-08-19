@@ -40,7 +40,7 @@ class ConditionalHookStrategy implements HookExecutionStrategy
                 Log::debug('Conditional hook strategy condition failed', [
                     'hook' => get_class($hook),
                     'strategy' => $this->strategy->getName(),
-                    'context' => $context->toArray(),
+                    'context' => $context->toLogArray(),
                 ]);
 
                 return;

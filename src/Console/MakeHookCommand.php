@@ -377,7 +377,7 @@ class {{ class }} extends BaseHookJob
             "method" => $context->method,
             "target" => get_class($context->target),
             "error" => $e->getMessage(),
-            "context" => $context->toArray()
+            "context" => $context->toLogArray()
         ]);
     }
 }';
@@ -459,7 +459,7 @@ class {{ class }} extends BaseHookJob
         Log::error("{{ class }} failed", [
             "hook" => static::class,
             "error" => $e->getMessage(),
-            "context" => $context->toArray()
+            "context" => $context->toLogArray()
         ]);
     }
 }';
@@ -561,7 +561,7 @@ class {{ class }} extends BaseHookJob
         Log::error("{{ class }} failed", [
             "hook" => static::class,
             "error" => $e->getMessage(),
-            "context" => $context->toArray()
+            "context" => $context->toLogArray()
         ]);
     }
 }';
@@ -684,7 +684,7 @@ class {{ class }} extends BaseHookJob
         Log::error("{{ class }} failed", [
             "hook" => static::class,
             "error" => $e->getMessage(),
-            "context" => $context->toArray()
+            "context" => $context->toLogArray()
         ]);
     }
 }';

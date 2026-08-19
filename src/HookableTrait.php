@@ -125,6 +125,14 @@ trait HookableTrait
         string $strategy = 'sync',
         array $options = []
     ): static {
+        if ($strategy !== 'sync') {
+            throw new \InvalidArgumentException(
+                "Closure hooks only support the 'sync' strategy. "
+                .'Closures cannot be serialized for queued/delayed/batched execution. '
+                .'Create a named hook class implementing HookJobInterface for async strategies.'
+            );
+        }
+
         // Generate a unique class alias for this closure and bind it in the container.
         $uniqueId = 'closure_hook_'.spl_object_id((object) []).'_'.uniqid();
         app()->bind($uniqueId, fn () => new ClosureHookJob($callback));
@@ -428,13 +436,18 @@ trait HookableTrait
      */
     protected function getHookMetadata(string $method, string $phase): array
     {
-        return [
+        $metadata = [
             'target_class' => static::class,
             'timestamp' => $this->hookExecutionTimestamp ?? now(),
-            'request_id' => request()?->id ?? null,
-            'ip_address' => request()?->ip(),
-            'user_agent' => request()?->userAgent(),
         ];
+
+        if (config('laravel-hooks.include_request_metadata', false)) {
+            $metadata['request_id'] = request()?->id ?? null;
+            $metadata['ip_address'] = request()?->ip();
+            $metadata['user_agent'] = request()?->userAgent();
+        }
+
+        return $metadata;
     }
 
     /**
@@ -500,7 +513,6 @@ trait HookableTrait
                 'method' => $method,
                 'original_error' => $error?->getMessage(),
                 'hook_error' => $hookError->getMessage(),
-                'hook_error_trace' => $hookError->getTraceAsString(),
             ]);
 
             report($hookError);

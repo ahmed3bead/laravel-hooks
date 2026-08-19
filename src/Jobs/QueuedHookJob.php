@@ -45,7 +45,7 @@ class QueuedHookJob implements ShouldQueue
         try {
             Log::info('Executing queued hook', [
                 'hook' => get_class($this->hook),
-                'context' => $this->context->toArray(),
+                'context' => $this->context->toLogArray(),
                 'attempt' => $this->attempts() + 1,
             ]);
 
@@ -60,13 +60,13 @@ class QueuedHookJob implements ShouldQueue
             } else {
                 Log::info('Queued hook skipped due to conditions', [
                     'hook' => get_class($this->hook),
-                    'context' => $this->context->toArray(),
+                    'context' => $this->context->toLogArray(),
                 ]);
             }
         } catch (\Exception $e) {
             Log::error('Queued hook execution failed', [
                 'hook' => get_class($this->hook),
-                'context' => $this->context->toArray(),
+                'context' => $this->context->toLogArray(),
                 'error' => $e->getMessage(),
                 'attempt' => $this->attempts() + 1,
                 'max_attempts' => $this->tries,
@@ -83,7 +83,7 @@ class QueuedHookJob implements ShouldQueue
     {
         Log::error('Queued hook job failed permanently', [
             'hook' => get_class($this->hook),
-            'context' => $this->context->toArray(),
+            'context' => $this->context->toLogArray(),
             'error' => $exception->getMessage(),
             'attempts' => $this->attempts(),
         ]);

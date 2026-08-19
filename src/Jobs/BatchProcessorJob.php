@@ -51,14 +51,14 @@ class BatchProcessorJob implements ShouldQueue
                 } else {
                     Log::debug('Batched hook skipped due to conditions', [
                         'hook' => get_class($hook),
-                        'context' => $context->toArray(),
+                        'context' => $context->toLogArray(),
                     ]);
                 }
             } catch (\Exception $e) {
                 $failed++;
                 Log::error('Batched hook execution failed', [
                     'hook' => $item['hook_class'] ?? get_class($item['hook'] ?? new \stdClass),
-                    'context' => $item['context']->toArray(),
+                    'context' => $item['context']->toLogArray(),
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -81,7 +81,17 @@ class BatchProcessorJob implements ShouldQueue
     {
         // Cache-backed format: class name stored as string
         if (isset($item['hook_class'])) {
-            return app($item['hook_class']);
+            $hookClass = $item['hook_class'];
+
+            if (! is_string($hookClass) || ! class_exists($hookClass)) {
+                throw new \RuntimeException('Batch item contains invalid hook class: '.(is_string($hookClass) ? $hookClass : gettype($hookClass)));
+            }
+
+            if (! is_a($hookClass, \Ahmed3bead\LaravelHooks\Contracts\HookJobInterface::class, true)) {
+                throw new \RuntimeException("Batch hook class does not implement HookJobInterface: {$hookClass}");
+            }
+
+            return app($hookClass);
         }
 
         // Legacy format: pre-instantiated hook object

@@ -126,9 +126,21 @@ class HookManager
      */
     public function addHooks(array $hookDefinitions): self
     {
-        foreach ($hookDefinitions as $definition) {
+        foreach ($hookDefinitions as $index => $definition) {
+            if (! is_array($definition)) {
+                throw new \InvalidArgumentException("Hook definition at index {$index} must be an array.");
+            }
+
+            $target = $definition['target'] ?? $definition['service'] ?? null;
+
+            if ($target === null || ! isset($definition['method'], $definition['phase'], $definition['hook'])) {
+                throw new \InvalidArgumentException(
+                    "Hook definition at index {$index} is missing required keys: target (or service), method, phase, hook."
+                );
+            }
+
             $this->addHook(
-                $definition['target'] ?? $definition['service'],
+                $target,
                 $definition['method'],
                 $definition['phase'],
                 $definition['hook'],

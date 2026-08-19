@@ -153,6 +153,6 @@ class BatchedHookStrategy implements HookExecutionStrategy
      */
     public static function makeCacheKey(string $batchKey): string
     {
-        return 'laravel-hooks:batch:'.$batchKey;
+        return 'laravel-hooks:batch:'.hash('sha256', $batchKey);
     }
 }

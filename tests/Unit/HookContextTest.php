@@ -181,7 +181,7 @@ test('toArray returns array with expected keys', function () {
     $array = $ctx->toArray();
 
     expect($array)->toHaveKeys([
-        'method', 'phase', 'data', 'request_data', 'parameters',
+        'method', 'phase', 'data', 'parameters',
         'result_type', 'has_wrapped_response', 'status_code', 'message',
         'target', 'model', 'extracted_model', 'user', 'metadata',
     ]);

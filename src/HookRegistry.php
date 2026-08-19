@@ -177,7 +177,7 @@ class HookRegistry
                     'hook' => $hookConfig['class'],
                     'strategy' => $hookConfig['strategy'],
                     'error' => $e->getMessage(),
-                    'context' => $context->toArray(),
+                    'context' => $context->toLogArray(),
                 ]);
 
                 // Continue with other hooks unless configured to stop
@@ -212,7 +212,23 @@ class HookRegistry
      */
     private function createHookInstance(string $hookClass, array $options): HookJobInterface
     {
-        if (! class_exists($hookClass) && ! app()->bound($hookClass)) {
+        // Validate class name format to prevent injection
+        if (! preg_match('/^[A-Za-z_\\\\][A-Za-z0-9_\\\\]*$/', $hookClass)) {
+            throw new \InvalidArgumentException('Hook class name contains invalid characters.');
+        }
+
+        // For real classes (not IoC aliases), verify interface BEFORE resolution
+        // to prevent executing arbitrary constructors.
+        if (class_exists($hookClass)) {
+            if (! is_a($hookClass, HookJobInterface::class, true)) {
+                throw new \InvalidArgumentException("Hook class {$hookClass} must implement HookJobInterface");
+            }
+
+            return app($hookClass);
+        }
+
+        // IoC alias (e.g. closure hooks) — must be bound in the container
+        if (! app()->bound($hookClass)) {
             throw new \InvalidArgumentException("Hook class {$hookClass} does not exist");
         }
 

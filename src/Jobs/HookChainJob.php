@@ -38,7 +38,7 @@ class HookChainJob implements ShouldQueue
     {
         Log::info('Executing hook chain', [
             'hooks_count' => count($this->hooks),
-            'context' => $this->context->toArray(),
+            'context' => $this->context->toLogArray(),
         ]);
 
         $executed = 0;
@@ -54,7 +54,7 @@ class HookChainJob implements ShouldQueue
                 $failed++;
                 Log::error('Hook in chain failed', [
                     'hook' => get_class($hook),
-                    'context' => $this->context->toArray(),
+                    'context' => $this->context->toLogArray(),
                     'error' => $e->getMessage(),
                 ]);
 
@@ -78,7 +78,7 @@ class HookChainJob implements ShouldQueue
     {
         Log::error('Hook chain job failed', [
             'hooks_count' => count($this->hooks),
-            'context' => $this->context->toArray(),
+            'context' => $this->context->toLogArray(),
             'error' => $exception->getMessage(),
         ]);
     }

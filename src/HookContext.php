@@ -184,7 +184,10 @@ class HookContext
     }
 
     /**
-     * Convert context to array for logging/debugging
+     * Convert context to array for logging/debugging.
+     *
+     * WARNING: This includes raw `data` and `parameters` which may contain
+     * sensitive information. For logging, prefer toLogArray() instead.
      */
     public function toArray(): array
     {
@@ -194,7 +197,6 @@ class HookContext
             'method' => $this->method,
             'phase' => $this->phase,
             'data' => $this->data,
-            'request_data' => request()?->all() ?? [],
             'parameters' => $this->parameters,
             'result_type' => $this->result !== null ? get_debug_type($this->result) : null,
             'has_wrapped_response' => $this->hasWrappedResponse(),
@@ -205,6 +207,25 @@ class HookContext
             'extracted_model' => $extractedModel ? get_class($extractedModel) : null,
             'user' => $this->user ? get_class($this->user) : null,
             'metadata' => $this->metadata,
+        ];
+    }
+
+    /**
+     * Convert context to a safe array for logging — excludes sensitive fields
+     * like raw data, parameters, and request payloads that may contain
+     * passwords, tokens, PII, or payment data.
+     */
+    public function toLogArray(): array
+    {
+        return [
+            'method' => $this->method,
+            'phase' => $this->phase,
+            'result_type' => $this->result !== null ? get_debug_type($this->result) : null,
+            'has_wrapped_response' => $this->hasWrappedResponse(),
+            'status_code' => $this->getStatusCode(),
+            'target' => get_class($this->target),
+            'model' => $this->model ? get_class($this->model) : null,
+            'user_id' => $this->getUserId(),
         ];
     }
 

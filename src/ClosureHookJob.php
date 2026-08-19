@@ -73,7 +73,7 @@ class ClosureHookJob implements HookJobInterface
         } catch (\Exception $e) {
             Log::error('Closure hook execution failed', [
                 'error' => $e->getMessage(),
-                'context' => $context->toArray(),
+                'context' => $context->toLogArray(),
             ]);
             throw $e;
         }

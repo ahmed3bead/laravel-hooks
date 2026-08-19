@@ -194,7 +194,7 @@ abstract class BaseHookJob implements HookJobInterface
         Log::debug('Hook condition failed', [
             'hook' => static::class,
             'condition' => $condition['description'] ?? 'Unknown condition',
-            'context' => $context->toArray(),
+            'context' => $context->toLogArray(),
         ]);
     }
 
@@ -239,11 +239,16 @@ abstract class BaseHookJob implements HookJobInterface
      */
     protected function handleError(\Exception $e, HookContext $context): void
     {
-        Log::error('Hook execution failed', [
+        $logData = [
             'hook' => static::class,
             'error' => $e->getMessage(),
-            'context' => $context->toArray(),
-            'trace' => $e->getTraceAsString(),
-        ]);
+            'context' => $context->toLogArray(),
+        ];
+
+        if (config('laravel-hooks.debug')) {
+            $logData['trace'] = $e->getTraceAsString();
+        }
+
+        Log::error('Hook execution failed', $logData);
     }
 }

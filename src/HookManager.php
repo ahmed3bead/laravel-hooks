@@ -422,11 +422,17 @@ class HookManager
     {
         $modifiedContext = $context;
 
-        foreach ($this->middleware as $middleware) {
+        foreach ($this->middleware as $index => $middleware) {
             $modifiedContext = $middleware($modifiedContext);
 
             if (! $modifiedContext instanceof HookContext) {
-                throw new \RuntimeException('Middleware must return a HookContext instance');
+                $middlewareDesc = is_object($middleware)
+                    ? get_class($middleware)
+                    : (is_array($middleware) ? implode('::', array_map('strval', $middleware)) : 'Closure');
+
+                throw new \RuntimeException(
+                    "Middleware #{$index} ({$middlewareDesc}) must return a HookContext instance, got: ".get_debug_type($modifiedContext)
+                );
             }
         }
 

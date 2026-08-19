@@ -23,6 +23,8 @@ trait HookableTrait
 
     private bool $hooksInitialized = false;
 
+    private mixed $hookExecutionTimestamp = null;
+
     /**
      * List of methods that support hooks. Empty means all methods are hookable.
      */
@@ -362,6 +364,9 @@ trait HookableTrait
         mixed $data = null,
         array $parameters = []
     ): mixed {
+        // Capture once so all phases share the same timestamp
+        $this->hookExecutionTimestamp = now();
+
         $this->executeBeforeHooks($method, $data, $parameters);
 
         try {
@@ -372,6 +377,8 @@ trait HookableTrait
         } catch (\Exception $e) {
             $this->executeErrorHooks($method, $data, $parameters, $e);
             throw $e;
+        } finally {
+            $this->hookExecutionTimestamp = null;
         }
     }
 
@@ -423,7 +430,7 @@ trait HookableTrait
     {
         return [
             'target_class' => static::class,
-            'timestamp' => now(),
+            'timestamp' => $this->hookExecutionTimestamp ?? now(),
             'request_id' => request()?->id ?? null,
             'ip_address' => request()?->ip(),
             'user_agent' => request()?->userAgent(),
@@ -604,11 +611,11 @@ trait HookableTrait
             return;
         }
 
-        if ($phase === 'before') {
-            $this->executeBeforeHooks($method, $data, $parameters);
-        } else {
-            $this->executeAfterHooks($method, $data, $parameters, $result);
-        }
+        match ($phase) {
+            'before' => $this->executeBeforeHooks($method, $data, $parameters),
+            'error' => $this->executeErrorHooks($method, $data, $parameters, $result instanceof \Exception ? $result : null),
+            default => $this->executeAfterHooks($method, $data, $parameters, $result),
+        };
     }
 
     /**

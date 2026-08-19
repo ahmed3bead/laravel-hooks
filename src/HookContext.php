@@ -87,7 +87,10 @@ class HookContext
     }
 
     /**
-     * Get the resource data from the result
+     * Get the resource data from the result.
+     *
+     * If the result is a wrapped response whose data has a `resource`
+     * property (e.g. a Laravel API Resource), return that property.
      */
     public function getResourceFromResult(): mixed
     {
@@ -98,8 +101,8 @@ class HookContext
         if ($this->result instanceof WrappedResponseInterface) {
             $data = $this->result->getData();
 
-            if (is_object($data) && method_exists($data, 'resource')) {
-                return $data;
+            if (is_object($data) && property_exists($data, 'resource')) {
+                return $data->resource;
             }
 
             return $data;
